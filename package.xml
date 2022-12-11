@@ -7,9 +7,9 @@
     <maintainer email="team-spatzenhirn@uni-ulm.de">Team Spatzenhirn</maintainer>
     <license>MIT</license>
 
-    <exec_depend>rclpy</exec_depend>
+    <exec_depend>rosidl_default_runtime</exec_depend>
 
     <export>
-        <build_type>ament_python</build_type>
+        <build_type>ament_cmake</build_type>
     </export>
 </package>
