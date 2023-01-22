@@ -32,9 +32,12 @@ target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
 add_executable(${PROJECT_NAME} src/rig_reconfigure.cpp)
 target_compile_options(${PROJECT_NAME} PRIVATE -g)
+target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_link_libraries(${PROJECT_NAME} imgui)
 ament_target_dependencies(${PROJECT_NAME} rclcpp)
 
 install(TARGETS ${PROJECT_NAME}
         DESTINATION lib/${PROJECT_NAME}
 )
+
+ament_package()

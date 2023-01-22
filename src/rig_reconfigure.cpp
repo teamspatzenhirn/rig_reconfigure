@@ -11,12 +11,14 @@
 #include <cstdio>
 #include <iostream>
 #include <vector>
+#include <optional>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 #include "rclcpp/rclcpp.hpp"
+#include "queue.hpp"
 
 static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -27,13 +29,69 @@ void print_error_and_fail(const std::string &error) {
     std::exit(1);
 }
 
-std::vector<std::string> nodeNames;
-int selectedIndex = 0;
+struct Request {
+    enum class Type {
+        TERMINATE, QUERY_NODE_NAMES
+    };
+
+    Type type;
+    std::vector<std::string> additionalData;
+};
+
+struct Response {
+    enum class Type {
+        NODE_NAMES, PARAMETERS
+    };
+
+    Type type;
+    std::vector<std::string> additionalData;
+};
+
+// for simplicity, we use global variables for the communication between both threads
+std::atomic_bool terminateThread = false;
+
+Queue<Request> requestQueue;
+Queue<Response> responseQueue;
+
+void rosThread() {
+    std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("rig_reconfigure");
+    rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedPtr listParametersClient =
+            node->create_client<rcl_interfaces::srv::ListParameters>("list_parameters");
+
+    rclcpp::executors::SingleThreadedExecutor executor;
+    executor.add_node(node);
+
+    while (!terminateThread) {
+        auto request = requestQueue.pop();
+
+        switch (request.type) {
+            case Request::Type::QUERY_NODE_NAMES: {
+                Response response;
+                response.type = Response::Type::NODE_NAMES;
+                response.additionalData = node->get_node_names();
+
+                // ignore node used for querying the services
+                auto it = std::remove_if(response.additionalData.begin(), response.additionalData.end(), [](const std::string &s) {
+                    return (s == "/rig_reconfigure");
+                });
+                response.additionalData.erase(it, response.additionalData.end());
+
+                responseQueue.push(std::move(response));
+                break;
+            }
+
+            case Request::Type::TERMINATE:
+                break;
+        }
+
+        executor.spin_once();
+    }
+}
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
 
-    std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("rig_reconfigure");
+    std::thread thread(rosThread);
 
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
@@ -65,8 +123,25 @@ int main(int argc, char *argv[]) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    int selectedIndex = 0;
+    std::vector<std::string> nodeNames;
+    std::string curSelectedNode;
+
     // Main loop
     while (!glfwWindowShouldClose(window)) {
+        // check the response queue
+        auto response = responseQueue.try_pop();
+
+        if (response.has_value()) {
+            switch (response->type) {
+                case Response::Type::NODE_NAMES:
+                    nodeNames = response->additionalData;
+                    break;
+                case Response::Type::PARAMETERS:
+                    break;
+            }
+        }
+
         // Poll and handle events (inputs, window resize, etc.)
         glfwPollEvents();
 
@@ -86,13 +161,17 @@ int main(int argc, char *argv[]) {
         ImGui::Text("Node: ");
         ImGui::SameLine();
 
-        std::string selectedNodeName = "";
-
         if (nodeNames.size() > 0) {
-            selectedNodeName = nodeNames.at(selectedIndex);
+            auto selectedNodeName = nodeNames.at(selectedIndex);
+
+            if (selectedNodeName != curSelectedNode) {
+                curSelectedNode = selectedNodeName;
+
+                // TODO: query parameters of the node
+            }
         }
 
-        if (ImGui::BeginCombo("##", selectedNodeName.c_str())) {
+        if (ImGui::BeginCombo("##", curSelectedNode.c_str())) {
             for (auto i = 0U; i < nodeNames.size(); ++i) {
                 const bool isSelected = (selectedIndex == i);
                 if (ImGui::Selectable(nodeNames[i].c_str(), isSelected)) {
@@ -106,10 +185,18 @@ int main(int argc, char *argv[]) {
         ImGui::SameLine();
 
         if (ImGui::Button("Refresh")) {
-            nodeNames = node->get_node_names();
+            requestQueue.push(Request{.type = Request::Type::QUERY_NODE_NAMES});
         }
 
         ImGui::Separator();
+
+        if (!curSelectedNode.empty()) {
+            ImGui::Text("Parameters");
+            ImGui::SameLine();
+
+            if (ImGui::Button("Reload parameters")) {
+            }
+        }
 
         ImGui::End();
         // Rendering
@@ -136,4 +223,14 @@ int main(int argc, char *argv[]) {
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    terminateThread = true;
+
+    requestQueue.push(Request{.type = Request::Type::TERMINATE});
+
+    if (thread.joinable()) {
+        thread.join();
+    }
+
+    rclcpp::shutdown();
 }
