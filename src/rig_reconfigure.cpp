@@ -12,13 +12,13 @@
 #include <iostream>
 #include <vector>
 #include <optional>
+#include <chrono>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
-#include "rclcpp/rclcpp.hpp"
-#include "queue.hpp"
+#include "service_wrapper.hpp"
 
 static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -29,69 +29,10 @@ void print_error_and_fail(const std::string &error) {
     std::exit(1);
 }
 
-struct Request {
-    enum class Type {
-        TERMINATE, QUERY_NODE_NAMES
-    };
-
-    Type type;
-    std::vector<std::string> additionalData;
-};
-
-struct Response {
-    enum class Type {
-        NODE_NAMES, PARAMETERS
-    };
-
-    Type type;
-    std::vector<std::string> additionalData;
-};
-
-// for simplicity, we use global variables for the communication between both threads
-std::atomic_bool terminateThread = false;
-
-Queue<Request> requestQueue;
-Queue<Response> responseQueue;
-
-void rosThread() {
-    std::shared_ptr<rclcpp::Node> node = rclcpp::Node::make_shared("rig_reconfigure");
-    rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedPtr listParametersClient =
-            node->create_client<rcl_interfaces::srv::ListParameters>("list_parameters");
-
-    rclcpp::executors::SingleThreadedExecutor executor;
-    executor.add_node(node);
-
-    while (!terminateThread) {
-        auto request = requestQueue.pop();
-
-        switch (request.type) {
-            case Request::Type::QUERY_NODE_NAMES: {
-                Response response;
-                response.type = Response::Type::NODE_NAMES;
-                response.additionalData = node->get_node_names();
-
-                // ignore node used for querying the services
-                auto it = std::remove_if(response.additionalData.begin(), response.additionalData.end(), [](const std::string &s) {
-                    return (s == "/rig_reconfigure");
-                });
-                response.additionalData.erase(it, response.additionalData.end());
-
-                responseQueue.push(std::move(response));
-                break;
-            }
-
-            case Request::Type::TERMINATE:
-                break;
-        }
-
-        executor.spin_once();
-    }
-}
-
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
 
-    std::thread thread(rosThread);
+    ServiceWrapper serviceWrapper;
 
     // Setup window
     glfwSetErrorCallback(glfw_error_callback);
@@ -130,14 +71,19 @@ int main(int argc, char *argv[]) {
     // Main loop
     while (!glfwWindowShouldClose(window)) {
         // check the response queue
-        auto response = responseQueue.try_pop();
+        auto response = serviceWrapper.tryPopResponse();
 
-        if (response.has_value()) {
+        if (response != nullptr) {
+            std::cout << "Response received!" << std::endl;
             switch (response->type) {
                 case Response::Type::NODE_NAMES:
-                    nodeNames = response->additionalData;
+                    nodeNames = std::dynamic_pointer_cast<NodeNameResponse>(response)->nodeNames;
                     break;
                 case Response::Type::PARAMETERS:
+                    std::cout << "Parameters of node " << curSelectedNode << std::endl;
+//                    for (const auto &p : response->additionalData) {
+//                        std::cout << p << std::endl;
+//                    }
                     break;
             }
         }
@@ -161,13 +107,15 @@ int main(int argc, char *argv[]) {
         ImGui::Text("Node: ");
         ImGui::SameLine();
 
-        if (nodeNames.size() > 0) {
+        if (!nodeNames.empty()) {
             auto selectedNodeName = nodeNames.at(selectedIndex);
 
             if (selectedNodeName != curSelectedNode) {
                 curSelectedNode = selectedNodeName;
 
-                // TODO: query parameters of the node
+                // query parameters of the node
+                serviceWrapper.setNodeOfInterest(curSelectedNode);
+                serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
             }
         }
 
@@ -185,7 +133,7 @@ int main(int argc, char *argv[]) {
         ImGui::SameLine();
 
         if (ImGui::Button("Refresh")) {
-            requestQueue.push(Request{.type = Request::Type::QUERY_NODE_NAMES});
+            serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
         }
 
         ImGui::Separator();
@@ -195,6 +143,7 @@ int main(int argc, char *argv[]) {
             ImGui::SameLine();
 
             if (ImGui::Button("Reload parameters")) {
+                std::cout << "Reload parameters" << std::endl;
             }
         }
 
@@ -224,13 +173,7 @@ int main(int argc, char *argv[]) {
     glfwDestroyWindow(window);
     glfwTerminate();
 
-    terminateThread = true;
-
-    requestQueue.push(Request{.type = Request::Type::TERMINATE});
-
-    if (thread.joinable()) {
-        thread.join();
-    }
+    serviceWrapper.terminate();
 
     rclcpp::shutdown();
 }

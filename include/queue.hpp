@@ -1,10 +1,10 @@
 /**
-* @file   queue.hpp
-* @author Dominik Authaler
-* @date   22.01.2022
-*
-* Utility class providing a thread safe queue.
-*/
+ * @file   queue.hpp
+ * @author Dominik Authaler
+ * @date   22.01.2022
+ *
+ * Utility class providing a thread safe queue.
+ */
 
 #ifndef RIG_RECONFIGURE_QUEUE_HPP
 #define RIG_RECONFIGURE_QUEUE_HPP
