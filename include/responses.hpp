@@ -9,8 +9,18 @@
 #ifndef RIG_RECONFIGURE_RESPONSES_HPP
 #define RIG_RECONFIGURE_RESPONSES_HPP
 
+#include <utility>
 #include <vector>
 #include <string>
+#include <variant>
+
+struct ROSParameter {
+    ROSParameter(std::string name, std::variant<bool, long int, double, std::string> value) : name(std::move(name)), value(std::move(value)) {};
+
+    std::string name;
+    // TODO: add arrays
+    std::variant<bool, long int, double, std::string> value;
+};
 
 struct Response {
     enum class Type {
@@ -29,6 +39,12 @@ struct NodeNameResponse : public Response {
     explicit NodeNameResponse(const std::vector<std::string> &nodeNames) : Response(Type::NODE_NAMES), nodeNames(nodeNames) {};
 
     std::vector<std::string> nodeNames;
+};
+
+struct ParameterValueResponse : public Response {
+    ParameterValueResponse() : Response(Type::PARAMETERS) {};
+
+    std::vector<ROSParameter> parameters;
 };
 
 #endif // RIG_RECONFIGURE_RESPONSES_HPP

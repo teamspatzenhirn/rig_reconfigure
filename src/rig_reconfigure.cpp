@@ -9,16 +9,14 @@
 
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <cstdio>
-#include <iostream>
 #include <vector>
-#include <optional>
-#include <chrono>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 #include "service_wrapper.hpp"
+#include "parameter_tree.hpp"
 
 static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -28,6 +26,8 @@ void print_error_and_fail(const std::string &error) {
     std::cerr << error << std::endl;
     std::exit(1);
 }
+
+void visualizeParameters(const std::shared_ptr<ParameterGroup> &parameterNode);
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -67,6 +67,7 @@ int main(int argc, char *argv[]) {
     int selectedIndex = 0;
     std::vector<std::string> nodeNames;
     std::string curSelectedNode;
+    ParameterTree parameterTree;
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
@@ -74,16 +75,18 @@ int main(int argc, char *argv[]) {
         auto response = serviceWrapper.tryPopResponse();
 
         if (response != nullptr) {
-            std::cout << "Response received!" << std::endl;
             switch (response->type) {
                 case Response::Type::NODE_NAMES:
                     nodeNames = std::dynamic_pointer_cast<NodeNameResponse>(response)->nodeNames;
                     break;
                 case Response::Type::PARAMETERS:
-                    std::cout << "Parameters of node " << curSelectedNode << std::endl;
-//                    for (const auto &p : response->additionalData) {
-//                        std::cout << p << std::endl;
-//                    }
+                    auto parameters = std::dynamic_pointer_cast<ParameterValueResponse>(response)->parameters;
+
+                    // reorganize the parameters as a tree
+                    parameterTree.clear();
+                    for (const auto param : parameters) {
+                        parameterTree.add(param);
+                    }
                     break;
             }
         }
@@ -143,11 +146,14 @@ int main(int argc, char *argv[]) {
             ImGui::SameLine();
 
             if (ImGui::Button("Reload parameters")) {
-                std::cout << "Reload parameters" << std::endl;
+                serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
             }
+
+            visualizeParameters(parameterTree.getRoot());
         }
 
         ImGui::End();
+
         // Rendering
         {
             ImGui::Render();
@@ -176,4 +182,24 @@ int main(int argc, char *argv[]) {
     serviceWrapper.terminate();
 
     rclcpp::shutdown();
+}
+
+void visualizeParameters(const std::shared_ptr<ParameterGroup> &parameterNode) {
+    if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
+        ImGui::Text("This node doesn't seem to have any parameters!");
+        return;
+    }
+
+    for (const auto &[name, value] : parameterNode->parameters) {
+        ImGui::Text("%s", name.c_str());
+    }
+
+    if (!parameterNode->subgroups.empty()) {
+        for (const auto &subgroup : parameterNode->subgroups) {
+            if (ImGui::TreeNode(subgroup->prefix.c_str())) {
+                visualizeParameters(subgroup);
+                ImGui::TreePop();
+            }
+        }
+    }
 }

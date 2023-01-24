@@ -105,11 +105,6 @@ void ServiceWrapper::threadFunc() {
             case Request::Type::QUERY_PARAMETER_VALUES: {
                 auto valueRequest = std::dynamic_pointer_cast<ParameterValueRequest>(request);
 
-                std::cout << "Querying values for the following parameters: " << std::endl;
-                for (const auto &s : valueRequest->parameterNames) {
-                    std::cout << s << std::endl;
-                }
-
                 auto serviceRequest = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
                 serviceRequest->names = valueRequest->parameterNames;
 
@@ -118,7 +113,32 @@ void ServiceWrapper::threadFunc() {
                 if (executor.spin_until_future_complete(result) ==
                     rclcpp::FutureReturnCode::SUCCESS) {
 
-                    std::cout << "Parameter values received: " << result.get()->values.size() << std::endl;
+                    auto response = std::make_shared<ParameterValueResponse>();
+
+                    auto values = result.get()->values;
+                    for (auto i = 0U; i < values.size(); i++) {
+                        const auto &parameterName = valueRequest->parameterNames.at(i);
+                        const auto &valueMsg = values.at(i);
+                        switch (valueMsg.type) {
+                            case rcl_interfaces::msg::ParameterType::PARAMETER_BOOL:
+                                response->parameters.emplace_back(parameterName, valueMsg.bool_value);
+                                break;
+                            case rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER:
+                                response->parameters.emplace_back(parameterName, valueMsg.integer_value);
+                                break;
+                            case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE:
+                                response->parameters.emplace_back(parameterName, valueMsg.double_value);
+                                break;
+                            case rcl_interfaces::msg::ParameterType::PARAMETER_STRING:
+                                response->parameters.emplace_back(parameterName, valueMsg.string_value);
+                                break;
+                            default:
+                                // arrays are currently not supported
+                                break;
+                        }
+                    }
+
+                    responseQueue.push(response);
                 }
                 break;
             }
