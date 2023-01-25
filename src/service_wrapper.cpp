@@ -67,9 +67,9 @@ void ServiceWrapper::threadFunc() {
             case Request::Type::QUERY_NODE_NAMES: {
                 auto response = std::make_shared<NodeNameResponse>(node->get_node_names());
 
-                // ignore node used for querying the services
+                // ignore node used for querying the services and ros2cli daemon nodes
                 auto it = std::remove_if(response->nodeNames.begin(), response->nodeNames.end(), [nodeName=std::string("/") + node->get_name()](const std::string &s) {
-                    return (s == nodeName);
+                    return (s == nodeName) || (s.find("/_ros2cli_daemon_") == 0);
                 });
 
                 response->nodeNames.erase(it, response->nodeNames.end());
