@@ -1,30 +1,21 @@
 /**
-* @file   responses.hpp
-* @author Dominik Authaler
-* @date   22.01.2022
-*
-* Possible responses which can be received from the service wrapper.
-*/
+ * @file   responses.hpp
+ * @author Dominik Authaler
+ * @date   22.01.2022
+ *
+ * Possible responses which can be received from the service wrapper.
+ */
 
 #ifndef RIG_RECONFIGURE_RESPONSES_HPP
 #define RIG_RECONFIGURE_RESPONSES_HPP
 
 #include <utility>
 #include <vector>
-#include <string>
-#include <variant>
-
-struct ROSParameter {
-    ROSParameter(std::string name, std::variant<bool, long int, double, std::string> value) : name(std::move(name)), value(std::move(value)) {};
-
-    std::string name;
-    // TODO: add arrays
-    std::variant<bool, long int, double, std::string> value;
-};
+#include "ros_parameter.hpp"
 
 struct Response {
     enum class Type {
-        NODE_NAMES, PARAMETERS
+        NODE_NAMES, PARAMETERS, MODIFICATION_RESULT
     };
 
     explicit Response(Type type) : type(type) {};
@@ -45,6 +36,13 @@ struct ParameterValueResponse : public Response {
     ParameterValueResponse() : Response(Type::PARAMETERS) {};
 
     std::vector<ROSParameter> parameters;
+};
+
+struct ParameterModificationResponse : public Response {
+    ParameterModificationResponse(bool success, std::string reason) : Response(Type::MODIFICATION_RESULT), success(success), reason(std::move(reason)) {};
+
+    bool success;
+    std::string reason;
 };
 
 #endif // RIG_RECONFIGURE_RESPONSES_HPP

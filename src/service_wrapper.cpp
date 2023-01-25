@@ -48,6 +48,7 @@ void ServiceWrapper::setNodeOfInterest(const std::string &name) {
 
     listParametersClient = node->create_client<rcl_interfaces::srv::ListParameters>(nodeName + "/list_parameters");
     getParametersClient = node->create_client<rcl_interfaces::srv::GetParameters>(nodeName + "/get_parameters");
+    setParametersClient = node->create_client<rcl_interfaces::srv::SetParameters>(nodeName + "/set_parameters");
 }
 
 void ServiceWrapper::pushRequest(RequestPtr &&request) {
@@ -124,7 +125,7 @@ void ServiceWrapper::threadFunc() {
                                 response->parameters.emplace_back(parameterName, valueMsg.bool_value);
                                 break;
                             case rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER:
-                                response->parameters.emplace_back(parameterName, valueMsg.integer_value);
+                                response->parameters.emplace_back(parameterName, static_cast<int>(valueMsg.integer_value));
                                 break;
                             case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE:
                                 response->parameters.emplace_back(parameterName, valueMsg.double_value);
@@ -141,6 +142,49 @@ void ServiceWrapper::threadFunc() {
                     responseQueue.push(response);
                 }
                 break;
+            }
+
+            case Request::Type::MODIFY_PARAMETER_VALUE: {
+                auto updateRequest = std::dynamic_pointer_cast<ParameterModificationRequest>(request);
+
+                if (updateRequest->parameter.name.empty()) {
+                    break;
+                }
+
+                auto update = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
+                rcl_interfaces::msg::Parameter parameterMsg;
+                if (updateRequest->parameter.name.at(0) == '/') {
+                    parameterMsg.name = updateRequest->parameter.name.substr(1);
+                } else {
+                    parameterMsg.name = updateRequest->parameter.name;
+                }
+
+                if (std::holds_alternative<int>(updateRequest->parameter.value)) {
+                    parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER;
+                    parameterMsg.value.integer_value = std::get<int>(updateRequest->parameter.value);
+                } else if (std::holds_alternative<bool>(updateRequest->parameter.value)) {
+                    parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL;
+                    parameterMsg.value.bool_value = std::get<bool>(updateRequest->parameter.value);
+                } else if (std::holds_alternative<double>(updateRequest->parameter.value)) {
+                    parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
+                    parameterMsg.value.double_value = std::get<double>(updateRequest->parameter.value);
+                } else if (std::holds_alternative<std::string>(updateRequest->parameter.value)) {
+                    parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
+                    parameterMsg.value.string_value = std::get<std::string>(updateRequest->parameter.value);
+                }
+
+                update->parameters.push_back(parameterMsg);
+
+                auto result = setParametersClient->async_send_request(update);
+
+                if (executor.spin_until_future_complete(result) ==
+                    rclcpp::FutureReturnCode::SUCCESS) {
+
+                    auto resultMsg = result.get();
+
+                    auto response = std::make_shared<ParameterModificationResponse>(resultMsg->results.at(0).successful, resultMsg->results.at(0).reason);
+                    responseQueue.push(response);
+                }
             }
 
             case Request::Type::TERMINATE:

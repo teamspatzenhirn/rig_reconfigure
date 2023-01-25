@@ -46,6 +46,7 @@ class ServiceWrapper {
     // clients for calling the different services
     rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedPtr listParametersClient;
     rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedPtr getParametersClient;
+    rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedPtr setParametersClient;
 };
 
 #endif // RIG_RECONFIGURE_SERVICE_WRAPPER_HPP

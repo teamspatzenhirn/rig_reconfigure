@@ -27,7 +27,7 @@ void print_error_and_fail(const std::string &error) {
     std::exit(1);
 }
 
-void visualizeParameters(const std::shared_ptr<ParameterGroup> &parameterNode);
+void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode, const std::string &prefix = "");
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
                 case Response::Type::NODE_NAMES:
                     nodeNames = std::dynamic_pointer_cast<NodeNameResponse>(response)->nodeNames;
                     break;
-                case Response::Type::PARAMETERS:
+                case Response::Type::PARAMETERS: {
                     auto parameters = std::dynamic_pointer_cast<ParameterValueResponse>(response)->parameters;
 
                     // reorganize the parameters as a tree
@@ -88,6 +88,13 @@ int main(int argc, char *argv[]) {
                         parameterTree.add(param);
                     }
                     break;
+                }
+
+                case Response::Type::MODIFICATION_RESULT:
+                    auto result = std::dynamic_pointer_cast<ParameterModificationResponse>(response);
+
+                    std::cout << "Modification successful: " << result->success << std::endl;
+                    std::cout << "Reason: " << result->reason << std::endl;
             }
         }
 
@@ -107,7 +114,8 @@ int main(int argc, char *argv[]) {
 
         ImGui::Begin("Dynamic reconfigure");
 
-        ImGui::Text("Node: ");
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted("Node: ");
         ImGui::SameLine();
 
         if (!nodeNames.empty()) {
@@ -142,14 +150,17 @@ int main(int argc, char *argv[]) {
         ImGui::Separator();
 
         if (!curSelectedNode.empty()) {
-            ImGui::Text("Parameters");
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted("Parameters");
             ImGui::SameLine();
 
             if (ImGui::Button("Reload parameters")) {
                 serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
             }
 
-            visualizeParameters(parameterTree.getRoot());
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+            visualizeParameters(serviceWrapper, parameterTree.getRoot());
         }
 
         ImGui::End();
@@ -184,20 +195,38 @@ int main(int argc, char *argv[]) {
     rclcpp::shutdown();
 }
 
-void visualizeParameters(const std::shared_ptr<ParameterGroup> &parameterNode) {
+void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode, const std::string &prefix) {
     if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
         ImGui::Text("This node doesn't seem to have any parameters!");
         return;
     }
 
-    for (const auto &[name, value] : parameterNode->parameters) {
-        ImGui::Text("%s", name.c_str());
+    for (auto &[name, value] : parameterNode->parameters) {
+//        std::string identifier = "##" + name;
+        std::string identifier = name;
+
+//        ImGui::AlignTextToFramePadding();
+//        ImGui::Text("%s", name.c_str());
+//        ImGui::SameLine();
+        if (std::holds_alternative<double>(value)) {
+            if (ImGui::InputDouble(identifier.c_str(), &std::get<double>(value), 0.01, 0.5, "%.2f")) {
+                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
+            }
+        } else if (std::holds_alternative<bool>(value)) {
+            if (ImGui::Checkbox(identifier.c_str(), &std::get<bool>(value))) {
+                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
+            }
+        } else if (std::holds_alternative<int>(value)) {
+            if (ImGui::InputInt(identifier.c_str(), &std::get<int>(value), 1, 10)) {
+                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
+            }
+        }
     }
 
     if (!parameterNode->subgroups.empty()) {
         for (const auto &subgroup : parameterNode->subgroups) {
             if (ImGui::TreeNode(subgroup->prefix.c_str())) {
-                visualizeParameters(subgroup);
+                visualizeParameters(serviceWrapper, subgroup, prefix + '/' +  subgroup->prefix.c_str());
                 ImGui::TreePop();
             }
         }
