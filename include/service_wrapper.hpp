@@ -32,6 +32,7 @@ struct ROSFuture {
     std::chrono::time_point<std::chrono::system_clock> timeSent;
     ROSFutureVariant future;
     bool handled = false;
+    bool timeoutReached = false;
 
     std::optional<std::vector<std::string>> requestedParameterNames;
 };

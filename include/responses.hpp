@@ -15,7 +15,7 @@
 
 struct Response {
     enum class Type {
-        NODE_NAMES, PARAMETERS, MODIFICATION_RESULT
+        NODE_NAMES, PARAMETERS, MODIFICATION_RESULT, SERVICE_TIMEOUT
     };
 
     explicit Response(Type type) : type(type) {};
@@ -39,10 +39,19 @@ struct ParameterValueResponse : public Response {
 };
 
 struct ParameterModificationResponse : public Response {
-    ParameterModificationResponse(bool success, std::string reason) : Response(Type::MODIFICATION_RESULT), success(success), reason(std::move(reason)) {};
+    ParameterModificationResponse(std::string parameterName, bool success, std::string reason) :
+        Response(Type::MODIFICATION_RESULT), parameterName(std::move(parameterName)), success(success),
+        reason(std::move(reason)) {};
 
+    std::string parameterName;
     bool success;
     std::string reason;
+};
+
+struct ServiceTimeout : public Response {
+    ServiceTimeout(std::string nodeName) : Response(Type::SERVICE_TIMEOUT), nodeName(std::move(nodeName)) {};
+
+    std::string nodeName;
 };
 
 #endif // RIG_RECONFIGURE_RESPONSES_HPP

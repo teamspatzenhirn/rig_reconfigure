@@ -11,7 +11,7 @@
 
 using namespace std::chrono_literals;
 
-constexpr auto ROS_SERVICE_TIMEOUT = 5s;
+constexpr auto ROS_SERVICE_TIMEOUT = 1s;
 
 template <typename T>
 bool checkServiceAvailability(T &serviceClient, std::chrono::seconds &timeout) {
@@ -131,16 +131,25 @@ void ServiceWrapper::threadFunc() {
                 if (future.wait_for(0s) == std::future_status::ready) {
                     const auto &resultMsg = future.get();
 
-                    auto response = std::make_shared<ParameterModificationResponse>(resultMsg->results.at(0).successful, resultMsg->results.at(0).reason);
+                    auto response = std::make_shared<ParameterModificationResponse>(rosServiceRequest.requestedParameterNames->at(0), resultMsg->results.at(0).successful, resultMsg->results.at(0).reason);
                     responseQueue.push(response);
                     rosServiceRequest.handled = true;
                 }
             }
         }
 
+        // check for timeouts
+        auto curTime = std::chrono::system_clock::now();
+        for (auto &unfinishedRequest : unfinishedROSRequests) {
+            if ((curTime - unfinishedRequest.timeSent) > ROS_SERVICE_TIMEOUT) {
+                responseQueue.push(std::make_shared<ServiceTimeout>(nodeName));
+                unfinishedRequest.timeoutReached = true;
+            }
+        }
+
         // remove request if handled our timeout is reached
-        std::erase_if(unfinishedROSRequests, [curTime = std::chrono::system_clock::now()](const auto &request) {
-            return request.handled || (curTime - request.timeSent) > ROS_SERVICE_TIMEOUT;
+        std::erase_if(unfinishedROSRequests, [](const auto &request) {
+            return request.handled || request.timeoutReached;
         });
 
         executor.spin_once(1ms);
@@ -213,7 +222,7 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
 
             update->parameters.push_back(parameterMsg);
 
-            unfinishedROSRequests.emplace_back(std::move(setParametersClient->async_send_request(update)));
+            unfinishedROSRequests.emplace_back(std::move(setParametersClient->async_send_request(update)), std::vector<std::string>{parameterMsg.name});
         }
 
         case Request::Type::TERMINATE:

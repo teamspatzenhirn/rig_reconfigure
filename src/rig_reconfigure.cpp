@@ -18,6 +18,10 @@
 #include "service_wrapper.hpp"
 #include "parameter_tree.hpp"
 
+enum class StatusTextType {
+    NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT
+};
+
 static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
@@ -65,9 +69,13 @@ int main(int argc, char *argv[]) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
+
     int selectedIndex = 0;
     std::vector<std::string> nodeNames;
     std::string curSelectedNode;
+    std::string status;
+    StatusTextType statusType = StatusTextType::NONE;
     ParameterTree parameterTree;
 
     // request available nodes on startup
@@ -82,6 +90,12 @@ int main(int argc, char *argv[]) {
             switch (response->type) {
                 case Response::Type::NODE_NAMES:
                     nodeNames = std::dynamic_pointer_cast<NodeNameResponse>(response)->nodeNames;
+
+                    if (nodeNames.empty()) {
+                        status = "Seems like there are no nodes available!";
+                        statusType = StatusTextType::NO_NODES_AVAILABLE;
+                    }
+
                     break;
                 case Response::Type::PARAMETERS: {
                     auto parameters = std::dynamic_pointer_cast<ParameterValueResponse>(response)->parameters;
@@ -94,11 +108,28 @@ int main(int argc, char *argv[]) {
                     break;
                 }
 
-                case Response::Type::MODIFICATION_RESULT:
+                case Response::Type::MODIFICATION_RESULT: {
                     auto result = std::dynamic_pointer_cast<ParameterModificationResponse>(response);
 
-                    std::cout << "Modification successful: " << result->success << std::endl;
-                    std::cout << "Reason: " << result->reason << std::endl;
+                    if (result->success) {
+                        status = "Parameter " + result->parameterName + " modified successfully!";
+                    } else {
+                        status = "Parameter " + result->parameterName
+                                 + "couldn't be modified!";
+                    }
+                    statusType = StatusTextType::PARAMETER_CHANGED;
+
+                    break;
+                }
+
+                case Response::Type::SERVICE_TIMEOUT: {
+                    auto result = std::dynamic_pointer_cast<ServiceTimeout>(response);
+
+                    status = "Node '" + result->nodeName + "' didn't respond to service call. Maybe the node has died?";
+                    statusType = StatusTextType::SERVICE_TIMEOUT;
+
+                    break;
+                }
             }
         }
 
@@ -122,7 +153,7 @@ int main(int argc, char *argv[]) {
         ImGui::TextUnformatted("Node: ");
         ImGui::SameLine();
 
-        if (!nodeNames.empty()) {
+        if (!nodeNames.empty() && selectedIndex < nodeNames.size()) {
             auto selectedNodeName = nodeNames.at(selectedIndex);
 
             if (selectedNodeName != curSelectedNode) {
@@ -152,6 +183,11 @@ int main(int argc, char *argv[]) {
 
         if (ImGui::Button("Refresh")) {
             serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
+
+            if (statusType == StatusTextType::SERVICE_TIMEOUT) {
+                status.clear();
+                statusType = StatusTextType::NONE;
+            }
         }
 
         ImGui::Separator();
@@ -168,8 +204,21 @@ int main(int argc, char *argv[]) {
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
             visualizeParameters(serviceWrapper, parameterTree.getRoot(), parameterTree.getMaxParamNameLength());
+
+            if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
+                status.clear();
+                statusType = StatusTextType::NONE;
+            }
         } else {
             ImGui::Text("Please select a node first!");
+        }
+
+        if (!status.empty() && ImGui::BeginViewportSideBar("##SecondaryMenuBar", viewport, ImGuiDir_Down, ImGui::GetFrameHeight(), window_flags)) {
+            if (ImGui::BeginMenuBar()) {
+                ImGui::Text("%s", status.c_str());
+                ImGui::EndMenuBar();
+            }
+            ImGui::End();
         }
 
         ImGui::End();
