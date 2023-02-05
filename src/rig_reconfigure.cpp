@@ -132,6 +132,9 @@ int main(int argc, char *argv[]) {
                 serviceWrapper.setNodeOfInterest(curSelectedNode);
                 serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
             }
+        } else if (!curSelectedNode.empty()) {
+            curSelectedNode.clear();
+            parameterTree.clear();
         }
 
         if (ImGui::BeginCombo("##", curSelectedNode.c_str())) {
@@ -165,6 +168,8 @@ int main(int argc, char *argv[]) {
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
             visualizeParameters(serviceWrapper, parameterTree.getRoot(), parameterTree.getMaxParamNameLength());
+        } else {
+            ImGui::Text("Please select a node first!");
         }
 
         ImGui::End();
