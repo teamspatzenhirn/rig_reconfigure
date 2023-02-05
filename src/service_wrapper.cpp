@@ -11,6 +11,8 @@
 
 using namespace std::chrono_literals;
 
+constexpr auto ROS_SERVICE_TIMEOUT = 5s;
+
 template <typename T>
 bool checkServiceAvailability(T &serviceClient, std::chrono::seconds &timeout) {
     if (!serviceClient->wait_for_service(timeout) || !rclcpp::ok()) {
@@ -42,7 +44,10 @@ void ServiceWrapper::terminate() {
 }
 
 void ServiceWrapper::setNodeOfInterest(const std::string &name) {
-    // TODO: cancel any pending service requests?
+    // cancel any futures which aim at requesting parameter names and values of the previously selected node
+    std::erase_if(unfinishedROSRequests, [](const auto &request) {
+               return std::holds_alternative<GetParametersFuture>(request.future) || std::holds_alternative<ListParametersFuture>(request.future);
+           });
 
     nodeName = name;
 
@@ -61,33 +66,19 @@ std::shared_ptr<Response> ServiceWrapper::tryPopResponse() {
 
 void ServiceWrapper::threadFunc() {
     while (!terminateThread) {
-        auto request = requestQueue.pop();
+        auto request = requestQueue.try_pop();
 
-        switch (request->type) {
-            case Request::Type::QUERY_NODE_NAMES: {
-                auto response = std::make_shared<NodeNameResponse>(node->get_node_names());
+        if (request.has_value()) {
+            handleRequest(request.value());
+        }
 
-                // ignore node used for querying the services and ros2cli daemon nodes
-                auto it = std::remove_if(response->nodeNames.begin(), response->nodeNames.end(), [nodeName=std::string("/") + node->get_name()](const std::string &s) {
-                    return (s == nodeName) || (s.find("/_ros2cli_daemon_") == 0);
-                });
+        // check whether any of the ROS2 futures are finished
+        for (auto &rosServiceRequest : unfinishedROSRequests) {
+            if (std::holds_alternative<ListParametersFuture>(rosServiceRequest.future)) {
+                auto &future = std::get<ListParametersFuture>(rosServiceRequest.future);
 
-                response->nodeNames.erase(it, response->nodeNames.end());
-
-                responseQueue.push(response);
-                break;
-            }
-
-            case Request::Type::QUERY_NODE_PARAMETERS: {
-                auto serviceRequest = std::make_shared<rcl_interfaces::srv::ListParameters::Request>();
-                serviceRequest->depth = 0;
-
-                auto result = listParametersClient->async_send_request(serviceRequest);
-
-                if (executor.spin_until_future_complete(result) ==
-                    rclcpp::FutureReturnCode::SUCCESS) {
-
-                    auto valueRequest = std::make_shared<ParameterValueRequest>(result.get()->result.names);
+                if (future.wait_for(0s) == std::future_status::ready) {
+                    auto valueRequest = std::make_shared<ParameterValueRequest>(future.get()->result.names);
 
                     if (ignoreDefaultParameters) {
                         // ignore node used for querying the services
@@ -99,33 +90,25 @@ void ServiceWrapper::threadFunc() {
                     }
 
                     requestQueue.push(std::move(valueRequest));
+                    rosServiceRequest.handled = true;
                 }
-                break;
-            }
+            } else if (std::holds_alternative<GetParametersFuture>(rosServiceRequest.future)) {
+                auto &future = std::get<GetParametersFuture>(rosServiceRequest.future);
 
-            case Request::Type::QUERY_PARAMETER_VALUES: {
-                auto valueRequest = std::dynamic_pointer_cast<ParameterValueRequest>(request);
-
-                auto serviceRequest = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
-                serviceRequest->names = valueRequest->parameterNames;
-
-                auto result = getParametersClient->async_send_request(serviceRequest);
-
-                if (executor.spin_until_future_complete(result) ==
-                    rclcpp::FutureReturnCode::SUCCESS) {
-
+                if (future.wait_for(0s) == std::future_status::ready) {
                     auto response = std::make_shared<ParameterValueResponse>();
 
-                    auto values = result.get()->values;
+                    auto values = future.get()->values;
                     for (auto i = 0U; i < values.size(); i++) {
-                        const auto &parameterName = valueRequest->parameterNames.at(i);
+                        const auto &parameterName = rosServiceRequest.requestedParameterNames->at(i);
                         const auto &valueMsg = values.at(i);
                         switch (valueMsg.type) {
                             case rcl_interfaces::msg::ParameterType::PARAMETER_BOOL:
                                 response->parameters.emplace_back(parameterName, valueMsg.bool_value);
                                 break;
                             case rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER:
-                                response->parameters.emplace_back(parameterName, static_cast<int>(valueMsg.integer_value));
+                                response->parameters.emplace_back(parameterName,
+                                                                  static_cast<int>(valueMsg.integer_value));
                                 break;
                             case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE:
                                 response->parameters.emplace_back(parameterName, valueMsg.double_value);
@@ -140,57 +123,100 @@ void ServiceWrapper::threadFunc() {
                     }
 
                     responseQueue.push(response);
+                    rosServiceRequest.handled = true;
                 }
-                break;
-            }
+            } else if (std::holds_alternative<SetParametersFuture>(rosServiceRequest.future)) {
+                auto &future = std::get<SetParametersFuture>(rosServiceRequest.future);
 
-            case Request::Type::MODIFY_PARAMETER_VALUE: {
-                auto updateRequest = std::dynamic_pointer_cast<ParameterModificationRequest>(request);
-
-                if (updateRequest->parameter.name.empty()) {
-                    break;
-                }
-
-                auto update = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
-                rcl_interfaces::msg::Parameter parameterMsg;
-                if (updateRequest->parameter.name.at(0) == '/') {
-                    parameterMsg.name = updateRequest->parameter.name.substr(1);
-                } else {
-                    parameterMsg.name = updateRequest->parameter.name;
-                }
-
-                if (std::holds_alternative<int>(updateRequest->parameter.value)) {
-                    parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER;
-                    parameterMsg.value.integer_value = std::get<int>(updateRequest->parameter.value);
-                } else if (std::holds_alternative<bool>(updateRequest->parameter.value)) {
-                    parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL;
-                    parameterMsg.value.bool_value = std::get<bool>(updateRequest->parameter.value);
-                } else if (std::holds_alternative<double>(updateRequest->parameter.value)) {
-                    parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
-                    parameterMsg.value.double_value = std::get<double>(updateRequest->parameter.value);
-                } else if (std::holds_alternative<std::string>(updateRequest->parameter.value)) {
-                    parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
-                    parameterMsg.value.string_value = std::get<std::string>(updateRequest->parameter.value);
-                }
-
-                update->parameters.push_back(parameterMsg);
-
-                auto result = setParametersClient->async_send_request(update);
-
-                if (executor.spin_until_future_complete(result) ==
-                    rclcpp::FutureReturnCode::SUCCESS) {
-
-                    auto resultMsg = result.get();
+                if (future.wait_for(0s) == std::future_status::ready) {
+                    const auto &resultMsg = future.get();
 
                     auto response = std::make_shared<ParameterModificationResponse>(resultMsg->results.at(0).successful, resultMsg->results.at(0).reason);
                     responseQueue.push(response);
+                    rosServiceRequest.handled = true;
                 }
             }
-
-            case Request::Type::TERMINATE:
-                break;
         }
 
-        executor.spin_once();
+        // remove request if handled our timeout is reached
+        std::erase_if(unfinishedROSRequests, [curTime = std::chrono::system_clock::now()](const auto &request) {
+            return request.handled || (curTime - request.timeSent) > ROS_SERVICE_TIMEOUT;
+        });
+
+        executor.spin_once(1ms);
+    }
+}
+
+void ServiceWrapper::handleRequest(const RequestPtr &request) {
+    switch (request->type) {
+        case Request::Type::QUERY_NODE_NAMES: {
+            auto response = std::make_shared<NodeNameResponse>(node->get_node_names());
+
+            // ignore node used for querying the services and ros2cli daemon nodes
+            auto it = std::remove_if(response->nodeNames.begin(), response->nodeNames.end(), [nodeName=std::string("/") + node->get_name()](const std::string &s) {
+                return (s == nodeName) || (s.find("/_ros2cli_daemon_") == 0);
+            });
+
+            response->nodeNames.erase(it, response->nodeNames.end());
+
+            responseQueue.push(response);
+            break;
+        }
+
+        case Request::Type::QUERY_NODE_PARAMETERS: {
+            auto serviceRequest = std::make_shared<rcl_interfaces::srv::ListParameters::Request>();
+            serviceRequest->depth = 0;
+
+            unfinishedROSRequests.emplace_back(std::move(listParametersClient->async_send_request(serviceRequest)));
+            break;
+        }
+
+        case Request::Type::QUERY_PARAMETER_VALUES: {
+            auto valueRequest = std::dynamic_pointer_cast<ParameterValueRequest>(request);
+
+            auto serviceRequest = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
+            serviceRequest->names = valueRequest->parameterNames;
+
+            unfinishedROSRequests.emplace_back(std::move(getParametersClient->async_send_request(serviceRequest)), valueRequest->parameterNames);
+
+            break;
+        }
+
+        case Request::Type::MODIFY_PARAMETER_VALUE: {
+            auto updateRequest = std::dynamic_pointer_cast<ParameterModificationRequest>(request);
+
+            if (updateRequest->parameter.name.empty()) {
+                break;
+            }
+
+            auto update = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
+            rcl_interfaces::msg::Parameter parameterMsg;
+            if (updateRequest->parameter.name.at(0) == '/') {
+                parameterMsg.name = updateRequest->parameter.name.substr(1);
+            } else {
+                parameterMsg.name = updateRequest->parameter.name;
+            }
+
+            if (std::holds_alternative<int>(updateRequest->parameter.value)) {
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER;
+                parameterMsg.value.integer_value = std::get<int>(updateRequest->parameter.value);
+            } else if (std::holds_alternative<bool>(updateRequest->parameter.value)) {
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL;
+                parameterMsg.value.bool_value = std::get<bool>(updateRequest->parameter.value);
+            } else if (std::holds_alternative<double>(updateRequest->parameter.value)) {
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
+                parameterMsg.value.double_value = std::get<double>(updateRequest->parameter.value);
+            } else if (std::holds_alternative<std::string>(updateRequest->parameter.value)) {
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
+                parameterMsg.value.string_value = std::get<std::string>(updateRequest->parameter.value);
+            }
+
+            update->parameters.push_back(parameterMsg);
+
+            unfinishedROSRequests.emplace_back(std::move(setParametersClient->async_send_request(update)));
+        }
+
+        case Request::Type::TERMINATE:
+            break;
     }
 }

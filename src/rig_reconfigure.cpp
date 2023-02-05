@@ -69,6 +69,9 @@ int main(int argc, char *argv[]) {
     std::string curSelectedNode;
     ParameterTree parameterTree;
 
+    // request available nodes on startup
+    serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
+
     // Main loop
     while (!glfwWindowShouldClose(window)) {
         // check the response queue

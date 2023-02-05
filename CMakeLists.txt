@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.8)
 project(rig_reconfigure)
 
+set(CMAKE_CXX_STANDARD 20)
+
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
