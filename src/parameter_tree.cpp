@@ -23,6 +23,7 @@ void ParameterTree::add(const std::shared_ptr<ParameterGroup> &curNode, const RO
     auto prefixStart = parameter.name.find('/');
     if (prefixStart == std::string::npos) {
         curNode->parameters.emplace_back(parameter);
+        maxParamNameLength = std::max(maxParamNameLength, parameter.name.length());
         return;
     }
 
@@ -48,4 +49,8 @@ void ParameterTree::add(const std::shared_ptr<ParameterGroup> &curNode, const RO
 
 std::shared_ptr<ParameterGroup> ParameterTree::getRoot() {
     return root;
+}
+
+std::size_t ParameterTree::getMaxParamNameLength() const {
+    return maxParamNameLength;
 }

@@ -27,7 +27,8 @@ void print_error_and_fail(const std::string &error) {
     std::exit(1);
 }
 
-void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode, const std::string &prefix = "");
+void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
+                         std::size_t maxParamLength, const std::string &prefix = "");
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -163,7 +164,7 @@ int main(int argc, char *argv[]) {
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-            visualizeParameters(serviceWrapper, parameterTree.getRoot());
+            visualizeParameters(serviceWrapper, parameterTree.getRoot(), parameterTree.getMaxParamNameLength());
         }
 
         ImGui::End();
@@ -198,19 +199,27 @@ int main(int argc, char *argv[]) {
     rclcpp::shutdown();
 }
 
-void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode, const std::string &prefix) {
+void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
+                         std::size_t maxParamLength, const std::string &prefix) {
     if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
         ImGui::Text("This node doesn't seem to have any parameters!");
         return;
     }
 
     for (auto &[name, value] : parameterNode->parameters) {
-//        std::string identifier = "##" + name;
-        std::string identifier = name;
+        std::string identifier = "##" + name;
+        std::string paddedName;
 
-//        ImGui::AlignTextToFramePadding();
-//        ImGui::Text("%s", name.c_str());
-//        ImGui::SameLine();
+        // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired :D)
+        if (name.length() < maxParamLength) {
+            paddedName = name + std::string(maxParamLength - name.length(), ' ');
+        } else {
+            paddedName = name;
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text("%s", paddedName.c_str());
+        ImGui::SameLine();
         if (std::holds_alternative<double>(value)) {
             if (ImGui::InputDouble(identifier.c_str(), &std::get<double>(value), 0.01, 0.5, "%.2f")) {
                 serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
@@ -229,7 +238,7 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
     if (!parameterNode->subgroups.empty()) {
         for (const auto &subgroup : parameterNode->subgroups) {
             if (ImGui::TreeNode(subgroup->prefix.c_str())) {
-                visualizeParameters(serviceWrapper, subgroup, prefix + '/' +  subgroup->prefix.c_str());
+                visualizeParameters(serviceWrapper, subgroup, maxParamLength, prefix + '/' +  subgroup->prefix.c_str());
                 ImGui::TreePop();
             }
         }
