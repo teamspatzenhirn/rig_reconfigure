@@ -18,6 +18,8 @@
 #include "service_wrapper.hpp"
 #include "parameter_tree.hpp"
 
+constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
+
 enum class StatusTextType {
     NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT
 };
@@ -49,10 +51,9 @@ int main(int argc, char *argv[]) {
     const char *glsl_version = "#version 130";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
     // Create window with graphics context
-    GLFWwindow *window = glfwCreateWindow(1280, 720, "Parameter modification editor", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(600, 800, "Parameter modification editor", NULL, NULL);
     if (window == NULL)
         return 1;
     glfwMakeContextCurrent(window);
@@ -274,8 +275,9 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
         ImGui::AlignTextToFramePadding();
         ImGui::Text("%s", paddedName.c_str());
         ImGui::SameLine();
+        ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
         if (std::holds_alternative<double>(value)) {
-            if (ImGui::InputDouble(identifier.c_str(), &std::get<double>(value), 0.01, 0.5, "%.2f")) {
+            if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr, nullptr, "%.2f")) {
                 serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
             }
         } else if (std::holds_alternative<bool>(value)) {
@@ -283,10 +285,11 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
                 serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
-            if (ImGui::InputInt(identifier.c_str(), &std::get<int>(value), 1, 10)) {
+            if (ImGui::DragInt(identifier.c_str(), &std::get<int>(value))) {
                 serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
             }
         }
+        ImGui::PopItemWidth();
     }
 
     if (!parameterNode->subgroups.empty()) {
