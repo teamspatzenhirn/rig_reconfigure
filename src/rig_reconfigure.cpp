@@ -63,6 +63,8 @@ int main(int argc, char *argv[]) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
@@ -72,7 +74,7 @@ int main(int argc, char *argv[]) {
 
     ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
 
-    int selectedIndex = 0;
+    int selectedIndex = -1;
     std::vector<std::string> nodeNames;
     std::string curSelectedNode;
     std::string status;
@@ -81,6 +83,8 @@ int main(int argc, char *argv[]) {
 
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
+
+    bool shouldResetLayout = true;
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
@@ -134,26 +138,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // Poll and handle events (inputs, window resize, etc.)
-        glfwPollEvents();
-
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        ImGuiViewport *viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->Pos);
-        ImGui::SetNextWindowSize(viewport->Size);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::SetNextWindowBgAlpha(0.0F);
-
-        ImGui::Begin("Dynamic reconfigure");
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted("Node: ");
-        ImGui::SameLine();
-
+        // handle changes of the selected node caused through refreshing / died nodes
         if (!nodeNames.empty() && selectedIndex < nodeNames.size()) {
             auto selectedNodeName = nodeNames.at(selectedIndex);
 
@@ -169,18 +154,75 @@ int main(int argc, char *argv[]) {
             parameterTree.clear();
         }
 
-        if (ImGui::BeginCombo("##", curSelectedNode.c_str())) {
+        // Poll and handle events (inputs, window resize, etc.)
+        glfwPollEvents();
+
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGuiViewport *viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::SetNextWindowBgAlpha(0.0F);
+
+        ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                        ImGuiWindowFlags_NoMove;
+        window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0F);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0F);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0F, 0.0F));
+
+        ImGui::Begin("Root window", nullptr, window_flags);
+        ImGui::PopStyleVar(3);
+
+        ImGuiID dockspace_id = ImGui::GetID("Root window dockspace");
+        ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0F, 0.0F), dockspace_flags);
+
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("View")) {
+                ImGui::MenuItem("Reset Layout", nullptr, &shouldResetLayout);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
+        }
+
+        if (ImGui::DockBuilderGetNode(dockspace_id) == NULL || shouldResetLayout) {
+            shouldResetLayout = false;
+            ImGui::DockBuilderRemoveNode(dockspace_id);                            // Clear out existing layout
+            ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace); // Add empty node
+            ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+
+            ImGuiID left = 0;
+            ImGuiID right = 0;
+            ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.3, &left, &right);
+
+            ImGui::DockBuilderDockWindow("Nodes", left);
+            ImGui::DockBuilderDockWindow("Parameters", right);
+            ImGui::DockBuilderFinish(dockspace_id);
+        }
+
+        ImGui::Begin("Nodes");
+
+        if (nodeNames.empty()) {
+            ImGui::Text("No nodes available!");
+        } else {
+            ImGui::Text("Available nodes:");
+
+            ImGui::ListBoxHeader("##Nodes", ImVec2(0, 500));
             for (auto i = 0U; i < nodeNames.size(); ++i) {
                 const bool isSelected = (selectedIndex == i);
                 if (ImGui::Selectable(nodeNames[i].c_str(), isSelected)) {
                     selectedIndex = i;
                 }
             }
-
-            ImGui::EndCombo();
+            ImGui::ListBoxFooter();
         }
-
-        ImGui::SameLine();
 
         if (ImGui::Button("Refresh")) {
             serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
@@ -191,11 +233,16 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        ImGui::Separator();
+        ImGui::End();
+
+        ImGui::Begin("Parameters");
 
         if (!curSelectedNode.empty()) {
-            ImGui::AlignTextToFramePadding();
-            ImGui::TextUnformatted("Parameters");
+            ImGui::Text("Parameters of '%s'", curSelectedNode.c_str());
+            ImGui::SameLine();
+
+            // a dynamic spacing would be nice here (essentially right aligning the button)
+            ImGui::Dummy(ImVec2(25.0f, 0.0f));
             ImGui::SameLine();
 
             if (ImGui::Button("Reload parameters")) {
@@ -214,13 +261,7 @@ int main(int argc, char *argv[]) {
             ImGui::Text("Please select a node first!");
         }
 
-        if (!status.empty() && ImGui::BeginViewportSideBar("##SecondaryMenuBar", viewport, ImGuiDir_Down, ImGui::GetFrameHeight(), window_flags)) {
-            if (ImGui::BeginMenuBar()) {
-                ImGui::Text("%s", status.c_str());
-                ImGui::EndMenuBar();
-            }
-            ImGui::End();
-        }
+        ImGui::End();
 
         ImGui::End();
 

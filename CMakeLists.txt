@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 
-# Download imgui + implot
+# Download imgui
 include(FetchContent)
 FetchContent_Declare(imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
