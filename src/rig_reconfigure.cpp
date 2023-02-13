@@ -15,10 +15,12 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
+#include "misc/cpp/imgui_stdlib.h"
 #include "service_wrapper.hpp"
 #include "parameter_tree.hpp"
 
 constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
+constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 
 enum class StatusTextType {
     NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT
@@ -34,7 +36,7 @@ void print_error_and_fail(const std::string &error) {
 }
 
 void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
-                         std::size_t maxParamLength, const std::string &prefix = "");
+                         std::size_t maxParamLength, bool filteredTree, const std::string &prefix = "");
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -80,6 +82,10 @@ int main(int argc, char *argv[]) {
     std::string status;
     StatusTextType statusType = StatusTextType::NONE;
     ParameterTree parameterTree;
+    ParameterTree filteredParameterTree;
+    bool reapplyFilter = true;
+    std::string filter;
+    std::string currentFilterString;
 
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
@@ -110,6 +116,7 @@ int main(int argc, char *argv[]) {
                     for (const auto param : parameters) {
                         parameterTree.add(param);
                     }
+                    reapplyFilter = true;
                     break;
                 }
 
@@ -152,6 +159,13 @@ int main(int argc, char *argv[]) {
         } else if (!curSelectedNode.empty()) {
             curSelectedNode.clear();
             parameterTree.clear();
+        }
+
+        if (reapplyFilter == true || currentFilterString != filter) {
+            reapplyFilter = false;
+            currentFilterString = filter;
+
+            filteredParameterTree = parameterTree.filter(currentFilterString);
         }
 
         // Poll and handle events (inputs, window resize, etc.)
@@ -251,7 +265,21 @@ int main(int argc, char *argv[]) {
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-            visualizeParameters(serviceWrapper, parameterTree.getRoot(), parameterTree.getMaxParamNameLength());
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Filter: ");
+            ImGui::SameLine();
+            ImGui::PushItemWidth(FILTER_INPUT_TEXT_FIELD_WIDTH);
+            ImGui::InputText("##Filter", &filter, ImGuiInputTextFlags_CharsNoBlank);
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+            if (ImGui::Button("Clear")) {
+                filter = "";
+            }
+
+            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+            visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(), filteredParameterTree.getMaxParamNameLength(),
+                                !currentFilterString.empty());
 
             if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
                 status.clear();
@@ -296,9 +324,14 @@ int main(int argc, char *argv[]) {
 }
 
 void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
-                         std::size_t maxParamLength, const std::string &prefix) {
+                         std::size_t maxParamLength, const bool filteredTree, const std::string &prefix) {
     if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
-        ImGui::Text("This node doesn't seem to have any parameters!");
+        if (filteredTree) {
+            ImGui::Text("This node doesn't seem to have any parameters\nmatching the filter!");
+        } else {
+            ImGui::Text("This node doesn't seem to have any parameters!");
+        }
+
         return;
     }
 
@@ -336,7 +369,8 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
     if (!parameterNode->subgroups.empty()) {
         for (const auto &subgroup : parameterNode->subgroups) {
             if (ImGui::TreeNode(subgroup->prefix.c_str())) {
-                visualizeParameters(serviceWrapper, subgroup, maxParamLength, prefix + '/' +  subgroup->prefix.c_str());
+                visualizeParameters(serviceWrapper, subgroup, maxParamLength, filteredTree,
+                                    prefix + '/' +  subgroup->prefix.c_str());
                 ImGui::TreePop();
             }
         }

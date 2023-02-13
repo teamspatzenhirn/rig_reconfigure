@@ -30,9 +30,18 @@ class ParameterTree {
     std::shared_ptr<ParameterGroup> getRoot();
     std::size_t getMaxParamNameLength() const;
 
+    ParameterTree filter(const std::string &filterString) const;
+
+    void removeEmptySubgroups();
+
 
   private:
     void add(const std::shared_ptr<ParameterGroup>& curNode, const ROSParameter& parameter);
+
+    void filter(const std::shared_ptr<ParameterGroup> &destinationNode,
+                const std::shared_ptr<ParameterGroup> &sourceNode,
+                const std::string &filterString,
+                const std::string &prefix) const;
 
     std::shared_ptr<ParameterGroup> root = nullptr;
 
