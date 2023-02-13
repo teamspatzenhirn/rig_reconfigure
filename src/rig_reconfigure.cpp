@@ -228,14 +228,15 @@ int main(int argc, char *argv[]) {
         } else {
             ImGui::Text("Available nodes:");
 
-            ImGui::ListBoxHeader("##Nodes", ImVec2(0, 500));
-            for (auto i = 0U; i < nodeNames.size(); ++i) {
-                const bool isSelected = (selectedIndex == i);
-                if (ImGui::Selectable(nodeNames[i].c_str(), isSelected)) {
-                    selectedIndex = i;
+            if (ImGui::BeginListBox("##Nodes", ImVec2(0, 500))) {
+                for (auto i = 0U; i < nodeNames.size(); ++i) {
+                    const bool isSelected = (selectedIndex == i);
+                    if (ImGui::Selectable(nodeNames[i].c_str(), isSelected)) {
+                        selectedIndex = i;
+                    }
                 }
+                ImGui::EndListBox();
             }
-            ImGui::ListBoxFooter();
         }
 
         if (ImGui::Button("Refresh")) {
