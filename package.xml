@@ -3,11 +3,12 @@
 <package format="3">
     <name>rig_reconfigure</name>
     <version>1.0.0</version>
-    <description>Dear ImGui based alternative for RQT reconfigure plugin.</description>
+    <description>Standalone GUI tool for editing node parameters at runtime.</description>
     <maintainer email="team-spatzenhirn@uni-ulm.de">Team Spatzenhirn</maintainer>
     <license>MIT</license>
 
-    <exec_depend>rosidl_default_runtime</exec_depend>
+    <buildtool_depend>ament_cmake</buildtool_depend>
+    <depend>libglfw3-dev</depend>
 
     <export>
         <build_type>ament_cmake</build_type>
