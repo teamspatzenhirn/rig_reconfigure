@@ -3,8 +3,6 @@
 Attempt of a RQT-reconfigure alternative based on [Dear ImGui](https://github.com/ocornut/imgui). Many thanks 
 to [ocornut](https://github.com/ocornut) for developing imgui, without, this project would not have been possible!
 
-**This is work in progress, not all intended features are implemented yet!**
-
 ## Why?
 
 During the development of our autonomous racing car we struggled to become friends with the dynamic reconfigure
