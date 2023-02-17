@@ -28,10 +28,16 @@ ServiceWrapper::ServiceWrapper(bool ignoreDefaultParameters) : ignoreDefaultPara
     executor.add_node(node);
 
     thread = std::thread(&ServiceWrapper::threadFunc, this);
+    rosThread = std::thread([&]() {
+        while (!terminateThread) {
+            executor.spin_until_future_complete(terminationHelper.get_future());
+        }
+    });
 }
 
 void ServiceWrapper::terminate() {
     terminateThread = true;
+    terminationHelper.set_value(true);
 
     // push 'empty' item to release thread from blocking wait
     requestQueue.push(std::make_shared<Request>(Request::Type::TERMINATE));
@@ -41,13 +47,31 @@ void ServiceWrapper::terminate() {
     if (thread.joinable()) {
         thread.join();
     }
+
+    if (rosThread.joinable()) {
+        rosThread.join();
+    }
+}
+
+void ServiceWrapper::checkForTimeouts() {
+    // check for timeouts
+    auto curTime = std::chrono::system_clock::now();
+    for (auto &unfinishedRequest : unfinishedROSRequests) {
+        if ((curTime - unfinishedRequest->timeSent) > ROS_SERVICE_TIMEOUT) {
+            responseQueue.push(std::make_shared<ServiceTimeout>(nodeName));
+            unfinishedRequest->timeoutReached = true;
+        }
+    }
+
+    // remove request if handled or timeout is reached
+    std::erase_if(unfinishedROSRequests, [](const auto &request) {
+        return request->handled || request->timeoutReached;
+    });
 }
 
 void ServiceWrapper::setNodeOfInterest(const std::string &name) {
-    // cancel any futures which aim at requesting parameter names and values of the previously selected node
-    std::erase_if(unfinishedROSRequests, [](const auto &request) {
-               return std::holds_alternative<GetParametersFuture>(request.future) || std::holds_alternative<ListParametersFuture>(request.future);
-           });
+    // TODO: cancel any requests related to the previously selected node?
+    //       Maybe this is already done in the destructor of the client?
 
     nodeName = name;
 
@@ -66,93 +90,9 @@ std::shared_ptr<Response> ServiceWrapper::tryPopResponse() {
 
 void ServiceWrapper::threadFunc() {
     while (!terminateThread) {
-        auto request = requestQueue.try_pop();
+        auto request = requestQueue.pop();
 
-        if (request.has_value()) {
-            handleRequest(request.value());
-        }
-
-        // check whether any of the ROS2 futures are finished
-        for (auto &rosServiceRequest : unfinishedROSRequests) {
-            if (std::holds_alternative<ListParametersFuture>(rosServiceRequest.future)) {
-                auto &future = std::get<ListParametersFuture>(rosServiceRequest.future);
-
-                if (future.wait_for(0s) == std::future_status::ready) {
-                    auto valueRequest = std::make_shared<ParameterValueRequest>(future.get()->result.names);
-
-                    if (ignoreDefaultParameters) {
-                        // ignore node used for querying the services
-                        auto it = std::remove_if(valueRequest->parameterNames.begin(), valueRequest->parameterNames.end(), [](const std::string &s) {
-                            return (s.rfind("qos_overrides./", 0) == 0) || (s.rfind("use_sim_time", 0) == 0);
-                        });
-
-                        valueRequest->parameterNames.erase(it, valueRequest->parameterNames.end());
-                    }
-
-                    requestQueue.push(std::move(valueRequest));
-                    rosServiceRequest.handled = true;
-                }
-            } else if (std::holds_alternative<GetParametersFuture>(rosServiceRequest.future)) {
-                auto &future = std::get<GetParametersFuture>(rosServiceRequest.future);
-
-                if (future.wait_for(0s) == std::future_status::ready) {
-                    auto response = std::make_shared<ParameterValueResponse>();
-
-                    auto values = future.get()->values;
-                    for (auto i = 0U; i < values.size(); i++) {
-                        const auto &parameterName = rosServiceRequest.requestedParameterNames->at(i);
-                        const auto &valueMsg = values.at(i);
-                        switch (valueMsg.type) {
-                            case rcl_interfaces::msg::ParameterType::PARAMETER_BOOL:
-                                response->parameters.emplace_back(parameterName, valueMsg.bool_value);
-                                break;
-                            case rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER:
-                                response->parameters.emplace_back(parameterName,
-                                                                  static_cast<int>(valueMsg.integer_value));
-                                break;
-                            case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE:
-                                response->parameters.emplace_back(parameterName, valueMsg.double_value);
-                                break;
-                            case rcl_interfaces::msg::ParameterType::PARAMETER_STRING:
-                                response->parameters.emplace_back(parameterName, valueMsg.string_value);
-                                break;
-                            default:
-                                // arrays are currently not supported
-                                break;
-                        }
-                    }
-
-                    responseQueue.push(response);
-                    rosServiceRequest.handled = true;
-                }
-            } else if (std::holds_alternative<SetParametersFuture>(rosServiceRequest.future)) {
-                auto &future = std::get<SetParametersFuture>(rosServiceRequest.future);
-
-                if (future.wait_for(0s) == std::future_status::ready) {
-                    const auto &resultMsg = future.get();
-
-                    auto response = std::make_shared<ParameterModificationResponse>(rosServiceRequest.requestedParameterNames->at(0), resultMsg->results.at(0).successful, resultMsg->results.at(0).reason);
-                    responseQueue.push(response);
-                    rosServiceRequest.handled = true;
-                }
-            }
-        }
-
-        // check for timeouts
-        auto curTime = std::chrono::system_clock::now();
-        for (auto &unfinishedRequest : unfinishedROSRequests) {
-            if ((curTime - unfinishedRequest.timeSent) > ROS_SERVICE_TIMEOUT) {
-                responseQueue.push(std::make_shared<ServiceTimeout>(nodeName));
-                unfinishedRequest.timeoutReached = true;
-            }
-        }
-
-        // remove request if handled our timeout is reached
-        std::erase_if(unfinishedROSRequests, [](const auto &request) {
-            return request.handled || request.timeoutReached;
-        });
-
-        executor.spin_once(1ms);
+        handleRequest(request);
     }
 }
 
@@ -162,11 +102,9 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             auto response = std::make_shared<NodeNameResponse>(node->get_node_names());
 
             // ignore node used for querying the services and ros2cli daemon nodes
-            auto it = std::remove_if(response->nodeNames.begin(), response->nodeNames.end(), [nodeName=std::string("/") + node->get_name()](const std::string &s) {
-                return (s == nodeName) || (s.find("/_ros2cli_daemon_") == 0);
+            std::erase_if(response->nodeNames, [nodeName=std::string("/") + node->get_name()](const std::string &s) {
+                return (s == nodeName) || s.starts_with("/_ros2cli_daemon_");
             });
-
-            response->nodeNames.erase(it, response->nodeNames.end());
 
             responseQueue.push(response);
             break;
@@ -176,7 +114,15 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             auto serviceRequest = std::make_shared<rcl_interfaces::srv::ListParameters::Request>();
             serviceRequest->depth = 0;
 
-            unfinishedROSRequests.emplace_back(std::move(listParametersClient->async_send_request(serviceRequest)));
+            const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
+
+            auto callbackLambda = [&, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture future) {
+                nodeParametersReceived(std::forward<decltype(future)>(future), timeoutPtr);
+            };
+
+            listParametersClient->async_send_request(serviceRequest, callbackLambda);
+
+            unfinishedROSRequests.push_back(timeoutPtr);
             break;
         }
 
@@ -186,8 +132,15 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             auto serviceRequest = std::make_shared<rcl_interfaces::srv::GetParameters::Request>();
             serviceRequest->names = valueRequest->parameterNames;
 
-            unfinishedROSRequests.emplace_back(std::move(getParametersClient->async_send_request(serviceRequest)), valueRequest->parameterNames);
+            const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
 
+            auto callbackLambda = [&, parameters=valueRequest->parameterNames, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
+                parameterValuesReceived(std::forward<decltype(future)>(future), parameters, timeoutPtr);
+            };
+
+            getParametersClient->async_send_request(serviceRequest, callbackLambda);
+
+            unfinishedROSRequests.push_back(timeoutPtr);
             break;
         }
 
@@ -222,10 +175,79 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
 
             update->parameters.push_back(parameterMsg);
 
-            unfinishedROSRequests.emplace_back(std::move(setParametersClient->async_send_request(update)), std::vector<std::string>{parameterMsg.name});
+            const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
+
+            auto callbackLambda = [&, name=parameterMsg.name, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture future) {
+                parameterModificationResponseReceived(std::forward<decltype(future)>(future), name, timeoutPtr);
+            };
+
+            setParametersClient->async_send_request(update, callbackLambda);
+
+            unfinishedROSRequests.push_back(timeoutPtr);
         }
 
         case Request::Type::TERMINATE:
             break;
     }
+}
+
+void ServiceWrapper::nodeParametersReceived(rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture future,
+                                            const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
+    auto valueRequest = std::make_shared<ParameterValueRequest>(future.get()->result.names);
+
+    if (ignoreDefaultParameters) {
+        // ignore node used for querying the services
+        std::erase_if(valueRequest->parameterNames, [](const std::string &s) {
+            return (s.starts_with("qos_overrides./") || s.starts_with("use_sim_time"));
+        });
+    }
+
+    timeoutContainer->handled = true;
+
+    requestQueue.push(std::move(valueRequest));
+}
+
+void ServiceWrapper::parameterValuesReceived(rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future,
+                                             const std::vector<std::string> &parameterNames,
+                                             const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
+    auto response = std::make_shared<ParameterValueResponse>();
+
+    auto values = future.get()->values;
+    for (auto i = 0U; i < values.size(); i++) {
+        const auto &parameterName = parameterNames.at(i);
+        const auto &valueMsg = values.at(i);
+        switch (valueMsg.type) {
+            case rcl_interfaces::msg::ParameterType::PARAMETER_BOOL:
+                response->parameters.emplace_back(parameterName, valueMsg.bool_value);
+                break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER:
+                response->parameters.emplace_back(parameterName, static_cast<int>(valueMsg.integer_value));
+                break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE:
+                response->parameters.emplace_back(parameterName, valueMsg.double_value);
+                break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_STRING:
+                response->parameters.emplace_back(parameterName, valueMsg.string_value);
+                break;
+            default:
+                // arrays are currently not supported
+                break;
+        }
+    }
+
+    timeoutContainer->handled = true;
+
+    responseQueue.push(response);
+}
+
+void ServiceWrapper::parameterModificationResponseReceived(rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture future,
+                                                           const std::string &parameterName,
+                                                           const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
+    const auto &resultMsg = future.get();
+
+    auto response = std::make_shared<ParameterModificationResponse>(parameterName, resultMsg->results.at(0).successful, resultMsg->results.at(0).reason);
+
+    timeoutContainer->handled = true;
+
+    responseQueue.push(response);
 }
