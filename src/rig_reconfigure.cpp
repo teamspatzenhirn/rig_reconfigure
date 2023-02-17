@@ -96,6 +96,7 @@ int main(int argc, char *argv[]) {
     while (!glfwWindowShouldClose(window)) {
         // check the response queue
         auto response = serviceWrapper.tryPopResponse();
+        serviceWrapper.checkForTimeouts();
 
         if (response != nullptr) {
             switch (response->type) {
@@ -113,7 +114,7 @@ int main(int argc, char *argv[]) {
 
                     // reorganize the parameters as a tree
                     parameterTree.clear();
-                    for (const auto param : parameters) {
+                    for (const auto &param : parameters) {
                         parameterTree.add(param);
                     }
                     reapplyFilter = true;

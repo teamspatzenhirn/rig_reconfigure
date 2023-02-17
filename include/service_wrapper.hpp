@@ -18,23 +18,17 @@
 #include "requests.hpp"
 #include "responses.hpp"
 
-using ListParametersFuture = rclcpp::Client<rcl_interfaces::srv::ListParameters>::FutureAndRequestId;
-using GetParametersFuture = rclcpp::Client<rcl_interfaces::srv::GetParameters>::FutureAndRequestId;
-using SetParametersFuture = rclcpp::Client<rcl_interfaces::srv::SetParameters>::FutureAndRequestId;
-using ROSFutureVariant = std::variant<ListParametersFuture, GetParametersFuture, SetParametersFuture>;
-
-struct ROSFuture {
-    explicit ROSFuture(ROSFutureVariant future,
-                       std::optional<std::vector<std::string>> requestedParameterNames = std::nullopt) : future(std::move(future)), requestedParameterNames(std::move(requestedParameterNames)) {
+/**
+ * Small helper struct for tracking whether the task of a future has been finished in time.
+ */
+struct FutureTimeoutContainer {
+    FutureTimeoutContainer() {
         timeSent = std::chrono::system_clock::now();
     }
 
     std::chrono::time_point<std::chrono::system_clock> timeSent;
-    ROSFutureVariant future;
     bool handled = false;
     bool timeoutReached = false;
-
-    std::optional<std::vector<std::string>> requestedParameterNames;
 };
 
 class ServiceWrapper {
@@ -49,6 +43,8 @@ class ServiceWrapper {
 
     ResponsePtr tryPopResponse();
 
+    void checkForTimeouts();
+
   private:
     void threadFunc();
     void handleRequest(const RequestPtr &request);
@@ -60,9 +56,11 @@ class ServiceWrapper {
 
     bool ignoreDefaultParameters;
     std::string nodeName;
-    std::thread thread;
+    std::thread thread;                   ///< Thread for offloading the creation of requests from the GPU thread.
+    std::thread rosThread;                ///< Thread for spinning the ROS node.
+    std::promise<bool> terminationHelper; ///< Helper future for terminating the ROS thread.
 
-    std::vector<ROSFuture> unfinishedROSRequests;
+    std::vector<std::shared_ptr<FutureTimeoutContainer>> unfinishedROSRequests;
 
     std::shared_ptr<rclcpp::Node> node;
     rclcpp::executors::SingleThreadedExecutor executor;
@@ -71,6 +69,16 @@ class ServiceWrapper {
     rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedPtr listParametersClient;
     rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedPtr getParametersClient;
     rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedPtr setParametersClient;
+
+    // callbacks for the results of the futures
+    void nodeParametersReceived(rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture future,
+                                const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
+    void parameterValuesReceived(rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future,
+                                 const std::vector<std::string> &parameterNames,
+                                 const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
+    void parameterModificationResponseReceived(rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture future,
+                                               const std::string &parameterName,
+                                               const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
 };
 
 #endif // RIG_RECONFIGURE_SERVICE_WRAPPER_HPP
