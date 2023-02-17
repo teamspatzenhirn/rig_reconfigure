@@ -125,10 +125,10 @@ int main(int argc, char *argv[]) {
                     auto result = std::dynamic_pointer_cast<ParameterModificationResponse>(response);
 
                     if (result->success) {
-                        status = "Parameter " + result->parameterName + " modified successfully!";
+                        status = "Parameter '" + result->parameterName + "' modified successfully!";
                     } else {
-                        status = "Parameter " + result->parameterName
-                                 + "couldn't be modified!";
+                        status = "Parameter '" + result->parameterName
+                                 + "' couldn't be modified!";
                     }
                     statusType = StatusTextType::PARAMETER_CHANGED;
 
@@ -213,12 +213,17 @@ int main(int argc, char *argv[]) {
             ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace); // Add empty node
             ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
 
+            ImGuiID top = 0;
+            ImGuiID bottom = 0;
+            ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Up, 0.9, &top, &bottom);
+
             ImGuiID left = 0;
             ImGuiID right = 0;
-            ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.3, &left, &right);
+            ImGui::DockBuilderSplitNode(top, ImGuiDir_Left, 0.3, &left, &right);
 
             ImGui::DockBuilderDockWindow("Nodes", left);
             ImGui::DockBuilderDockWindow("Parameters", right);
+            ImGui::DockBuilderDockWindow("Status", bottom);
             ImGui::DockBuilderFinish(dockspace_id);
         }
 
@@ -237,6 +242,11 @@ int main(int argc, char *argv[]) {
                     }
                 }
                 ImGui::EndListBox();
+            }
+
+            if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
+                status.clear();
+                statusType = StatusTextType::NONE;
             }
         }
 
@@ -291,6 +301,10 @@ int main(int argc, char *argv[]) {
             ImGui::Text("Please select a node first!");
         }
 
+        ImGui::End();
+
+        ImGui::Begin("Status");
+        ImGui::Text("%s", status.c_str());
         ImGui::End();
 
         ImGui::End();
@@ -352,17 +366,18 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
         ImGui::Text("%s", paddedName.c_str());
         ImGui::SameLine();
         ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
+        std::string prefixWithName = prefix + '/' + name;
         if (std::holds_alternative<double>(value)) {
             if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr, nullptr, "%.2f")) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
+                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         } else if (std::holds_alternative<bool>(value)) {
             if (ImGui::Checkbox(identifier.c_str(), &std::get<bool>(value))) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
+                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
             if (ImGui::DragInt(identifier.c_str(), &std::get<int>(value))) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefix + '/' + name, value)));
+                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         }
         ImGui::PopItemWidth();
@@ -372,7 +387,7 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
         for (const auto &subgroup : parameterNode->subgroups) {
             if (ImGui::TreeNode(subgroup->prefix.c_str())) {
                 visualizeParameters(serviceWrapper, subgroup, maxParamLength, filteredTree,
-                                    prefix + '/' +  subgroup->prefix.c_str());
+                                    prefix + '/' +  subgroup->prefix);
                 ImGui::TreePop();
             }
         }
