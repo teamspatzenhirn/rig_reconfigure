@@ -31,11 +31,6 @@ static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-void print_error_and_fail(const std::string &error) {
-    std::cerr << error << std::endl;
-    std::exit(1);
-}
-
 void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
                          std::size_t maxParamLength, const std::string &filterString, const std::string &prefix = "");
 std::size_t findCaseInsensitive(const std::string &string, const std::string &pattern);
