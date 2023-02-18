@@ -21,6 +21,7 @@
 
 constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
 constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
+constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
 
 enum class StatusTextType {
     NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT
@@ -36,7 +37,10 @@ void print_error_and_fail(const std::string &error) {
 }
 
 void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
-                         std::size_t maxParamLength, bool filteredTree, const std::string &prefix = "");
+                         std::size_t maxParamLength, const std::string &filterString, const std::string &prefix = "");
+std::size_t findCaseInsensitive(const std::string &string, const std::string &pattern);
+void highlightedText(const std::string &text, const std::string &pattern = "",
+                     const ImVec4 highlightColor = FILTER_HIGHLIGHTING_COLOR);
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -291,7 +295,7 @@ int main(int argc, char *argv[]) {
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
             visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(), filteredParameterTree.getMaxParamNameLength(),
-                                !currentFilterString.empty());
+                                currentFilterString);
 
             if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
                 status.clear();
@@ -340,9 +344,9 @@ int main(int argc, char *argv[]) {
 }
 
 void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
-                         std::size_t maxParamLength, const bool filteredTree, const std::string &prefix) {
+                         std::size_t maxParamLength, const std::string &filterString, const std::string &prefix) {
     if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
-        if (filteredTree) {
+        if (!filterString.empty()) {
             ImGui::Text("This node doesn't seem to have any parameters\nmatching the filter!");
         } else {
             ImGui::Text("This node doesn't seem to have any parameters!");
@@ -353,17 +357,21 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 
     for (auto &[name, value] : parameterNode->parameters) {
         std::string identifier = "##" + name;
-        std::string paddedName;
 
         // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired :D)
+        std::string padding;
         if (name.length() < maxParamLength) {
-            paddedName = name + std::string(maxParamLength - name.length(), ' ');
-        } else {
-            paddedName = name;
+            padding = std::string(maxParamLength - name.length(), ' ');
         }
 
         ImGui::AlignTextToFramePadding();
-        ImGui::Text("%s", paddedName.c_str());
+
+        highlightedText(name, filterString);
+
+        ImGui::SameLine(0, 0);
+        ImGui::Text("%s", padding.c_str());
+
+
         ImGui::SameLine();
         ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
         std::string prefixWithName = prefix + '/' + name;
@@ -385,11 +393,53 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 
     if (!parameterNode->subgroups.empty()) {
         for (const auto &subgroup : parameterNode->subgroups) {
-            if (ImGui::TreeNode(subgroup->prefix.c_str())) {
-                visualizeParameters(serviceWrapper, subgroup, maxParamLength, filteredTree,
-                                    prefix + '/' +  subgroup->prefix);
+            bool open = ImGui::TreeNode(("##" + subgroup->prefix).c_str());
+            ImGui::SameLine();
+            highlightedText(subgroup->prefix, filterString);
+
+            if (open) {
+                visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
+                                    prefix + '/' +  subgroup->prefix.c_str());
                 ImGui::TreePop();
             }
         }
+    }
+}
+
+// based on the following stack overflow answer: https://stackoverflow.com/a/19839371
+std::size_t findCaseInsensitive(const std::string &string, const std::string &pattern) {
+    auto it = std::search(string.begin(), string.end(), pattern.begin(), pattern.end(),
+            [](unsigned char ch1, unsigned char ch2) { return std::toupper(ch1) == std::toupper(ch2); }
+    );
+
+    return (it != string.end()) ? std::distance(string.begin(), it) : std::string::npos;
+}
+
+void highlightedText(const std::string &text, const std::string &pattern,
+                     const ImVec4 highlightColor) {
+
+    if (pattern.empty()) {
+        ImGui::Text("%s", text.c_str());
+        return;
+    }
+
+    auto startPos = findCaseInsensitive(text, pattern);
+
+    if (startPos == std::string::npos) {
+        ImGui::Text("%s", text.c_str());
+        return;
+    }
+
+    const auto endPos = startPos + pattern.length();
+    if (startPos > 0) {
+        ImGui::Text("%s", text.substr(0, startPos).c_str());
+        ImGui::SameLine(0, 0);
+    }
+
+    ImGui::TextColored(FILTER_HIGHLIGHTING_COLOR, "%s", text.substr(startPos, pattern.length()).c_str());
+
+    if (endPos < text.length() - 1) {
+        ImGui::SameLine(0, 0);
+        ImGui::Text("%s", text.substr(endPos).c_str());
     }
 }
