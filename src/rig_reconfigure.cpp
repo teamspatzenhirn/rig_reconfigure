@@ -34,7 +34,7 @@ static void glfw_error_callback(int error, const char *description) {
 void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
                          std::size_t maxParamLength, const std::string &filterString, const std::string &prefix = "");
 void highlightedText(const std::string &text, std::size_t start, std::size_t end,
-                     const ImVec4 highlightColor = FILTER_HIGHLIGHTING_COLOR);
+                     const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -409,7 +409,7 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 }
 
 void highlightedText(const std::string &text, std::size_t start, std::size_t end,
-                     const ImVec4 highlightColor) {
+                     const ImVec4 &highlightColor) {
     if (start == std::string::npos) {
         ImGui::Text("%s", text.c_str());
         return;
