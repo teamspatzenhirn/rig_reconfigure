@@ -8,11 +8,12 @@
 
 #include "parameter_tree.hpp"
 
+#include <algorithm>
 #include <cstring>
 
 // declaration of utility functions
 bool recursivelyRemoveEmptySubgroups(const std::shared_ptr<ParameterGroup> &curNode);
-std::string toUpperCase(const std::string &string);
+std::size_t findCaseInsensitive(const std::string &string, const std::string &pattern);
 
 ParameterTree::ParameterTree() : root(std::make_shared<ParameterGroup>()) {
 
@@ -66,11 +67,8 @@ ParameterTree ParameterTree::filter(const std::string &filterString) const {
 
     filteredTree.maxParamNameLength = maxParamNameLength;
 
-    // convert search string to upper case letters in order to search case-insensitive
-    auto upperCaseSearchString = toUpperCase(filterString);
-
     // first pass: filter all parameters
-    filter(filteredTree.getRoot(), root, upperCaseSearchString, "");
+    filter(filteredTree.getRoot(), root, filterString, "");
 
     // second pass: remove empty subgroups (multiple passes since our tree has no parent pointer)
     filteredTree.removeEmptySubgroups();
@@ -89,12 +87,12 @@ void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNod
 
     // filter parameters
     for (const auto &parameter : sourceNode->parameters) {
-        auto fullParameterName = prefix + '/' + toUpperCase(parameter.name);
-        const auto pos = fullParameterName.find(filterString);
+        auto fullParameterName = prefix + '/' + parameter.name;
+        const auto pos = findCaseInsensitive(fullParameterName, filterString);
         if (pos != std::string::npos) {
             // we need to realign the position of the pattern because the parameter stores only the name (without
             // the prefix) + the pattern could be contained in the prefix and the parameter
-            auto searchPatternPos = toUpperCase(parameter.name).find(filterString);
+            auto searchPatternPos = findCaseInsensitive(parameter.name, filterString);
 
             if (searchPatternPos != std::string::npos) {
                 destinationNode->parameters.push_back(parameter);
@@ -109,10 +107,10 @@ void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNod
 
     // filter subgroups
     for (const auto &subgroup : sourceNode->subgroups) {
-        auto newPrefix = prefix + '/' + toUpperCase(subgroup->prefix);
+        auto newPrefix = prefix + '/' + subgroup->prefix;
         destinationNode->subgroups.push_back(std::make_shared<ParameterGroup>(subgroup->prefix));
 
-        auto searchPatternPos = toUpperCase(subgroup->prefix).find(filterString);
+        auto searchPatternPos = findCaseInsensitive(subgroup->prefix, filterString);
         if (searchPatternPos != std::string::npos) {
             destinationNode->subgroups.back()->prefixSearchPatternStart = searchPatternPos;
             destinationNode->subgroups.back()->prefixSearchPatternEnd = searchPatternPos + filterString.length();
@@ -148,13 +146,11 @@ bool recursivelyRemoveEmptySubgroups(const std::shared_ptr<ParameterGroup> &curN
     return empty;
 }
 
-std::string toUpperCase(const std::string &string) {
-    std::string upper;
-    upper.reserve(string.size());
+// based on the following stack overflow answer: https://stackoverflow.com/a/19839371
+std::size_t findCaseInsensitive(const std::string &string, const std::string &pattern) {
+    auto it = std::search(string.begin(), string.end(), pattern.begin(), pattern.end(),
+                          [](unsigned char ch1, unsigned char ch2) { return std::toupper(ch1) == std::toupper(ch2); }
+    );
 
-    for (const auto c : string) {
-        upper.push_back(toupper(c));
-    }
-
-    return upper;
+    return (it != string.end()) ? std::distance(string.begin(), it) : std::string::npos;
 }
