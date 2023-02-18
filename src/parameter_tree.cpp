@@ -90,8 +90,20 @@ void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNod
     // filter parameters
     for (const auto &parameter : sourceNode->parameters) {
         auto fullParameterName = prefix + '/' + toUpperCase(parameter.name);
-        if (fullParameterName.find(filterString) != std::string::npos) {
-            destinationNode->parameters.push_back(parameter);
+        const auto pos = fullParameterName.find(filterString);
+        if (pos != std::string::npos) {
+            // we need to realign the position of the pattern because the parameter stores only the name (without
+            // the prefix) + the pattern could be contained in the prefix and the parameter
+            auto searchPatternPos = toUpperCase(parameter.name).find(filterString);
+
+            if (searchPatternPos != std::string::npos) {
+                destinationNode->parameters.push_back(parameter);
+                destinationNode->parameters.back().searchPatternStart = searchPatternPos;
+                destinationNode->parameters.back().searchPatternEnd = searchPatternPos + filterString.length();
+            } else {
+                // search pattern was found in the prefix --> nothing to highlight within the parameter name
+                destinationNode->parameters.push_back(parameter);
+            }
         }
     }
 

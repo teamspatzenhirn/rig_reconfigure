@@ -41,6 +41,8 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 std::size_t findCaseInsensitive(const std::string &string, const std::string &pattern);
 void highlightedText(const std::string &text, const std::string &pattern = "",
                      const ImVec4 highlightColor = FILTER_HIGHLIGHTING_COLOR);
+void highlightedText(const std::string &text, std::size_t start, std::size_t end,
+                     const ImVec4 highlightColor = FILTER_HIGHLIGHTING_COLOR);
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -355,7 +357,7 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
         return;
     }
 
-    for (auto &[name, value] : parameterNode->parameters) {
+    for (auto &[name, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
         std::string identifier = "##" + name;
 
         // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired :D)
@@ -366,11 +368,14 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 
         ImGui::AlignTextToFramePadding();
 
-        highlightedText(name, filterString);
+        if (highlightingStart.has_value() && highlightingEnd.has_value()) {
+            highlightedText(name, highlightingStart.value(), highlightingEnd.value());
+        } else {
+            ImGui::Text("%s", name.c_str());
+        }
 
         ImGui::SameLine(0, 0);
         ImGui::Text("%s", padding.c_str());
-
 
         ImGui::SameLine();
         ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
@@ -399,7 +404,7 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 
             if (open) {
                 visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
-                                    prefix + '/' +  subgroup->prefix.c_str());
+                                    prefix + '/' +  subgroup->prefix);
                 ImGui::TreePop();
             }
         }
@@ -431,15 +436,26 @@ void highlightedText(const std::string &text, const std::string &pattern,
     }
 
     const auto endPos = startPos + pattern.length();
-    if (startPos > 0) {
-        ImGui::Text("%s", text.substr(0, startPos).c_str());
+
+    highlightedText(text, startPos, endPos, highlightColor);
+}
+
+void highlightedText(const std::string &text, std::size_t start, std::size_t end,
+                     const ImVec4 highlightColor) {
+    if (start == std::string::npos) {
+        ImGui::Text("%s", text.c_str());
+        return;
+    }
+
+    if (start > 0) {
+        ImGui::Text("%s", text.substr(0, start).c_str());
         ImGui::SameLine(0, 0);
     }
 
-    ImGui::TextColored(FILTER_HIGHLIGHTING_COLOR, "%s", text.substr(startPos, pattern.length()).c_str());
+    ImGui::TextColored(FILTER_HIGHLIGHTING_COLOR, "%s", text.substr(start, end - start).c_str());
 
-    if (endPos < text.length() - 1) {
+    if (end < text.length() - 1) {
         ImGui::SameLine(0, 0);
-        ImGui::Text("%s", text.substr(endPos).c_str());
+        ImGui::Text("%s", text.substr(end).c_str());
     }
 }
