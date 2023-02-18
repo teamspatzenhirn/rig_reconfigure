@@ -111,6 +111,13 @@ void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNod
     for (const auto &subgroup : sourceNode->subgroups) {
         auto newPrefix = prefix + '/' + toUpperCase(subgroup->prefix);
         destinationNode->subgroups.push_back(std::make_shared<ParameterGroup>(subgroup->prefix));
+
+        auto searchPatternPos = toUpperCase(subgroup->prefix).find(filterString);
+        if (searchPatternPos != std::string::npos) {
+            destinationNode->subgroups.back()->prefixSearchPatternStart = searchPatternPos;
+            destinationNode->subgroups.back()->prefixSearchPatternEnd = searchPatternPos + filterString.length();
+        }
+
         filter(destinationNode->subgroups.back(), subgroup, filterString, newPrefix);
     }
 }

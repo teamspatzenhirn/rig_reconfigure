@@ -10,12 +10,15 @@
 #define RIG_RECONFIGURE_PARAMETER_TREE_HPP
 
 #include <memory>
+#include <optional>
 #include "responses.hpp"
 
 struct ParameterGroup {
     explicit ParameterGroup(std::string prefix = "") : prefix(std::move(prefix)) {};
 
     std::string prefix;
+    std::optional<std::size_t> prefixSearchPatternStart;
+    std::optional<std::size_t> prefixSearchPatternEnd;
 
     std::vector<ROSParameter> parameters;
     std::vector<std::shared_ptr<ParameterGroup>> subgroups;
