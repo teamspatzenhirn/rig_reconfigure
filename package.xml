@@ -5,6 +5,7 @@
     <version>1.0.0</version>
     <description>Standalone GUI tool for editing node parameters at runtime.</description>
     <maintainer email="team-spatzenhirn@uni-ulm.de">Team Spatzenhirn</maintainer>
+    <maintainer email="jonas@jonasotto.com">Jonas Otto</maintainer>
     <license>MIT</license>
 
     <buildtool_depend>ament_cmake</buildtool_depend>
