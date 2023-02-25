@@ -2,6 +2,6 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.0.0 (2023-02-25)
+------------------
 * initial release
