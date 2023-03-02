@@ -232,7 +232,7 @@ int main(int argc, char *argv[]) {
         } else {
             ImGui::Text("Available nodes:");
 
-            if (ImGui::BeginListBox("##Nodes", ImVec2(0, 500))) {
+            if (ImGui::BeginListBox("##Nodes", ImVec2(-1, 500))) {
                 for (auto i = 0U; i < nodeNames.size(); ++i) {
                     const bool isSelected = (selectedIndex == i);
                     if (ImGui::Selectable(nodeNames[i].c_str(), isSelected)) {
