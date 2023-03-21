@@ -158,8 +158,17 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // handle changes of the selected node + died nodes
-        if (nodeNameIndex != selectedIndex) {
+        // handle changes of the selected node + died nodes / newly added nodes during the refresh step
+        const auto nodeNameIterator = std::find(nodeNames.begin(), nodeNames.end(), curSelectedNode);
+        bool nodeStillAvailable = (nodeNameIterator != nodeNames.end());
+        bool nameAtIndexChanged = (selectedIndex < nodeNames.size() && curSelectedNode != nodeNames.at(selectedIndex));
+
+        if (nodeNameIndex == selectedIndex && nameAtIndexChanged && nodeStillAvailable) {
+            // node list has changed, e.g. because new nodes have been started
+            // -> selected node does still exist, hence, we simply need to update the selected index
+            selectedIndex = std::distance(nodeNames.begin(), nodeNameIterator);
+            nodeNameIndex = selectedIndex;
+        } else if (nodeNameIndex != selectedIndex) {
             // selected node has changed
             selectedIndex = nodeNameIndex;
 
@@ -179,9 +188,7 @@ int main(int argc, char *argv[]) {
                 statusType = StatusTextType::NONE;
             }
         } else if (!curSelectedNode.empty()
-                   && (nodeNames.empty()
-                       || (selectedIndex < nodeNames.size() && nodeNames.at(selectedIndex) != curSelectedNode)
-                       || selectedIndex >= nodeNames.size())) {
+                   && (nodeNames.empty() || nameAtIndexChanged || selectedIndex >= nodeNames.size())) {
             status = "Warning: Node '" + curSelectedNode + "' seems to have died!";
             statusType = StatusTextType::SERVICE_TIMEOUT;
         }
