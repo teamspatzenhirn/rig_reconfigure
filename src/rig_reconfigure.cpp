@@ -16,16 +16,14 @@
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 #include "misc/cpp/imgui_stdlib.h"
-#include "service_wrapper.hpp"
 #include "parameter_tree.hpp"
+#include "service_wrapper.hpp"
 
 constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
 constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
 
-enum class StatusTextType {
-    NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT
-};
+enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
 static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
@@ -72,18 +70,19 @@ int main(int argc, char *argv[]) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
+    ImGuiWindowFlags window_flags =
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
 
     int selectedIndex = -1;
     std::vector<std::string> nodeNames;
     std::string curSelectedNode;
     std::string status;
     StatusTextType statusType = StatusTextType::NONE;
-    ParameterTree parameterTree;
-    ParameterTree filteredParameterTree;
+    ParameterTree parameterTree;         // tree with all parameters
+    ParameterTree filteredParameterTree; // parameter tree after the application of the filter string
     bool reapplyFilter = true;
-    std::string filter;
-    std::string currentFilterString;
+    std::string filter;              // current filter string of the text input field
+    std::string currentFilterString; // currently active filter string
 
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
@@ -125,8 +124,7 @@ int main(int argc, char *argv[]) {
                     if (result->success) {
                         status = "Parameter '" + result->parameterName + "' modified successfully!";
                     } else {
-                        status = "Parameter '" + result->parameterName
-                                 + "' couldn't be modified!";
+                        status = "Parameter '" + result->parameterName + "' couldn't be modified!";
                     }
                     statusType = StatusTextType::PARAMETER_CHANGED;
 
@@ -288,8 +286,8 @@ int main(int argc, char *argv[]) {
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-            visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(), filteredParameterTree.getMaxParamNameLength(),
-                                currentFilterString);
+            visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
+                                filteredParameterTree.getMaxParamNameLength(), currentFilterString);
 
             if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
                 status.clear();
@@ -352,7 +350,8 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
     for (auto &[name, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
         std::string identifier = "##" + name;
 
-        // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired :D)
+        // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired
+        // :D)
         std::string padding;
         if (name.length() < maxParamLength) {
             padding = std::string(maxParamLength - name.length(), ' ');
@@ -373,16 +372,20 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
         ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
         std::string prefixWithName = prefix + '/' + name;
         if (std::holds_alternative<double>(value)) {
-            if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr, nullptr, "%.2f")) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+            if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
+                                  nullptr, "%.2f")) {
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         } else if (std::holds_alternative<bool>(value)) {
             if (ImGui::Checkbox(identifier.c_str(), &std::get<bool>(value))) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
             if (ImGui::DragInt(identifier.c_str(), &std::get<int>(value))) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         }
         ImGui::PopItemWidth();
@@ -401,15 +404,14 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 
             if (open) {
                 visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
-                                    prefix + '/' +  subgroup->prefix);
+                                    prefix + '/' + subgroup->prefix);
                 ImGui::TreePop();
             }
         }
     }
 }
 
-void highlightedText(const std::string &text, std::size_t start, std::size_t end,
-                     const ImVec4 &highlightColor) {
+void highlightedText(const std::string &text, std::size_t start, std::size_t end, const ImVec4 &highlightColor) {
     if (start == std::string::npos) {
         ImGui::Text("%s", text.c_str());
         return;
