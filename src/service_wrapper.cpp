@@ -106,6 +106,9 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
                 return (s == nodeName) || s.starts_with("/_ros2cli_daemon_");
             });
 
+            // sort nodes alphabetically
+            std::sort(response->nodeNames.begin(), response->nodeNames.end());
+
             responseQueue.push(response);
             break;
         }
