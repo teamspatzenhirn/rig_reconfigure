@@ -10,6 +10,7 @@
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <cstdio>
 #include <vector>
+#include <chrono>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -19,9 +20,13 @@
 #include "parameter_tree.hpp"
 #include "service_wrapper.hpp"
 
+using namespace std::chrono_literals;
+
 constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
 constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
+constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
+constexpr auto NODES_AUTO_REFRESH_INTERVAL = 5s; // unit: seconds
 
 enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
@@ -74,6 +79,7 @@ int main(int argc, char *argv[]) {
             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
 
     int selectedIndex = -1;
+    int nodeNameIndex = -1;
     std::vector<std::string> nodeNames;
     std::string curSelectedNode;
     std::string status;
@@ -83,6 +89,8 @@ int main(int argc, char *argv[]) {
     bool reapplyFilter = true;
     std::string filter;              // current filter string of the text input field
     std::string currentFilterString; // currently active filter string
+    bool autoRefreshNodes = true;
+    auto lastNodeRefreshTime = std::chrono::system_clock::now();
 
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
@@ -142,8 +150,11 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // handle changes of the selected node caused through refreshing / died nodes
-        if (!nodeNames.empty() && selectedIndex < nodeNames.size()) {
+        // handle changes of the selected node + died nodes
+        if (nodeNameIndex != selectedIndex) {
+            // selected node has changed
+            selectedIndex = nodeNameIndex;
+
             auto selectedNodeName = nodeNames.at(selectedIndex);
 
             if (selectedNodeName != curSelectedNode) {
@@ -153,9 +164,18 @@ int main(int argc, char *argv[]) {
                 serviceWrapper.setNodeOfInterest(curSelectedNode);
                 serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
             }
-        } else if (!curSelectedNode.empty()) {
-            curSelectedNode.clear();
-            parameterTree.clear();
+
+            // clear warning about died node if one switches to another one
+            if (statusType == StatusTextType::SERVICE_TIMEOUT) {
+                status.clear();
+                statusType = StatusTextType::NONE;
+            }
+        } else if (!curSelectedNode.empty()
+                   && (nodeNames.empty()
+                       || (selectedIndex < nodeNames.size() && nodeNames.at(selectedIndex) != curSelectedNode)
+                       || selectedIndex >= nodeNames.size())) {
+            status = "Warning: Node '" + curSelectedNode + "' seems to have died!";
+            statusType = StatusTextType::SERVICE_TIMEOUT;
         }
 
         if (reapplyFilter == true || currentFilterString != filter) {
@@ -163,6 +183,13 @@ int main(int argc, char *argv[]) {
             currentFilterString = filter;
 
             filteredParameterTree = parameterTree.filter(currentFilterString);
+        }
+
+        // auto refresh the node list periodically
+        const auto currentTime = std::chrono::system_clock::now();
+        if (currentTime - lastNodeRefreshTime > NODES_AUTO_REFRESH_INTERVAL && autoRefreshNodes) {
+            lastNodeRefreshTime = currentTime;
+            serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
         }
 
         // Poll and handle events (inputs, window resize, etc.)
@@ -197,7 +224,12 @@ int main(int argc, char *argv[]) {
 
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("View")) {
-                ImGui::MenuItem("Reset Layout", nullptr, &shouldResetLayout);
+                ImGui::MenuItem("Reset layout", nullptr, &shouldResetLayout);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Nodes")) {
+                ImGui::MenuItem("Refresh periodically", nullptr, &autoRefreshNodes);
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
@@ -232,9 +264,9 @@ int main(int argc, char *argv[]) {
 
             if (ImGui::BeginListBox("##Nodes", ImVec2(-1, 500))) {
                 for (auto i = 0U; i < nodeNames.size(); ++i) {
-                    const bool isSelected = (selectedIndex == i);
+                    const bool isSelected = (nodeNameIndex == i);
                     if (ImGui::Selectable(nodeNames[i].c_str(), isSelected)) {
-                        selectedIndex = i;
+                        nodeNameIndex = i;
                     }
                 }
                 ImGui::EndListBox();
@@ -300,7 +332,11 @@ int main(int argc, char *argv[]) {
         ImGui::End();
 
         ImGui::Begin("Status");
-        ImGui::Text("%s", status.c_str());
+        if (statusType == StatusTextType::SERVICE_TIMEOUT) {
+            ImGui::TextColored(STATUS_WARNING_COLOR, "%s", status.c_str());
+        } else {
+            ImGui::Text("%s", status.c_str());
+        }
         ImGui::End();
 
         ImGui::End();
