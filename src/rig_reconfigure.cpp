@@ -36,7 +36,7 @@ static void glfw_error_callback(int error, const char *description) {
 
 void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
                          std::size_t maxParamLength, const std::string &filterString,
-                         bool expandAll = false, bool collapseAll = false, const std::string &prefix = "");
+                         bool expandAll = false, const std::string &prefix = "");
 void highlightedText(const std::string &text, std::size_t start, std::size_t end,
                      const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 
@@ -93,9 +93,6 @@ int main(int argc, char *argv[]) {
     bool autoRefreshNodes = true;
     auto lastNodeRefreshTime = std::chrono::system_clock::now();
 
-    bool expandAllParameters = false;
-    bool collapseAllParameters = false;
-
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
 
@@ -103,9 +100,8 @@ int main(int argc, char *argv[]) {
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
-        // reset variables which are only relevant for one iteration
-        expandAllParameters = false;
-        collapseAllParameters = false;
+        // these variables are only relevant for a single iteration
+        bool expandAllParameters = false;
 
         // check the response queue
         auto response = serviceWrapper.tryPopResponse();
@@ -320,12 +316,6 @@ int main(int argc, char *argv[]) {
                 expandAllParameters = true;
             }
 
-            ImGui::SameLine();
-
-            if (ImGui::Button("Collapse all")) {
-                collapseAllParameters = true;
-            }
-
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
             ImGui::AlignTextToFramePadding();
@@ -343,7 +333,7 @@ int main(int argc, char *argv[]) {
 
             visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
                                 filteredParameterTree.getMaxParamNameLength(), currentFilterString,
-                                expandAllParameters, collapseAllParameters);
+                                expandAllParameters);
 
             if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
                 status.clear();
@@ -397,7 +387,7 @@ int main(int argc, char *argv[]) {
 
 void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
                          std::size_t maxParamLength, const std::string &filterString,
-                         const bool expandAll, const bool collapseAll, const std::string &prefix) {
+                         const bool expandAll, const std::string &prefix) {
     if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
         if (!filterString.empty()) {
             ImGui::Text("This node doesn't seem to have any parameters\nmatching the filter!");
@@ -456,8 +446,6 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
         for (const auto &subgroup : parameterNode->subgroups) {
             if (expandAll) {
                 ImGui::SetNextItemOpen(true);
-            } else if (collapseAll) {
-                ImGui::SetNextItemOpen(false);
             }
 
             bool open = ImGui::TreeNode(("##" + subgroup->prefix).c_str());
@@ -471,7 +459,7 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 
             if (open) {
                 visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
-                                    expandAll, collapseAll, prefix + '/' + subgroup->prefix);
+                                    expandAll, prefix + '/' + subgroup->prefix);
                 ImGui::TreePop();
             }
         }
