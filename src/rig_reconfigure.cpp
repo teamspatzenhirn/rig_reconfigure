@@ -34,12 +34,14 @@ static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
-                                      const std::shared_ptr<ParameterGroup> &parameterNode,
-                                      std::size_t maxParamLength, const std::string &filterString,
-                                      bool expandAll = false, const std::string &prefix = "");
-void highlightedText(const std::string &text, std::size_t start, std::size_t end,
-                     const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
+static std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
+                                             const std::shared_ptr<ParameterGroup> &parameterNode,
+                                             std::size_t maxParamLength, const std::string &filterString,
+                                             bool expandAll = false, const std::string &prefix = "");
+static void highlightedText(const std::string &text, std::size_t start, std::size_t end,
+                            const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
+static bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
+                                      const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -471,16 +473,22 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             const auto label = "##" + subgroup->prefix;
 
             // this is hacky, we need the ID of the TreeNode in order to access the memory for collapsing it
-            nodeIDs.insert(window->GetID(label.c_str()));
+            const auto nodeID = window->GetID(label.c_str());
+            nodeIDs.insert(nodeID);
 
             bool open = ImGui::TreeNode(label.c_str());
 
             ImGui::SameLine();
+            bool textClicked = false;
             if (subgroup->prefixSearchPatternStart.has_value() && subgroup->prefixSearchPatternEnd.has_value()) {
-                highlightedText(subgroup->prefix, subgroup->prefixSearchPatternStart.value(),
-                                subgroup->prefixSearchPatternEnd.value());
+                textClicked = highlightedSelectableText(subgroup->prefix, subgroup->prefixSearchPatternStart.value(),
+                                                        subgroup->prefixSearchPatternEnd.value());
             } else {
-                ImGui::Text("%s", subgroup->prefix.c_str());
+                textClicked = ImGui::Selectable((subgroup->prefix).c_str());
+            }
+
+            if (textClicked) {
+                ImGui::TreeNodeSetOpen(nodeID, !open);
             }
 
             if (open) {
@@ -495,6 +503,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
     return nodeIDs;
 }
 
+
 void highlightedText(const std::string &text, std::size_t start, std::size_t end, const ImVec4 &highlightColor) {
     if (start == std::string::npos) {
         ImGui::Text("%s", text.c_str());
@@ -506,10 +515,38 @@ void highlightedText(const std::string &text, std::size_t start, std::size_t end
         ImGui::SameLine(0, 0);
     }
 
-    ImGui::TextColored(FILTER_HIGHLIGHTING_COLOR, "%s", text.substr(start, end - start).c_str());
+    ImGui::PushStyleColor(ImGuiCol_Text, FILTER_HIGHLIGHTING_COLOR);
+    ImGui::Text("%s", text.substr(start, end - start).c_str());
+    ImGui::PopStyleColor();
 
     if (end < text.length() - 1) {
         ImGui::SameLine(0, 0);
         ImGui::Text("%s", text.substr(end).c_str());
     }
+}
+
+bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
+                               const ImVec4 &highlightColor) {
+    bool selected = false;
+
+    if (start == std::string::npos) {
+        selected |= ImGui::Selectable(text.c_str());
+        return selected;
+    }
+
+    if (start > 0) {
+        selected |= ImGui::Selectable( text.substr(0, start).c_str());
+        ImGui::SameLine(0, 0);
+    }
+
+    ImGui::PushStyleColor(ImGuiCol_Text, FILTER_HIGHLIGHTING_COLOR);
+    selected |= ImGui::Selectable(text.substr(start, end - start).c_str());
+    ImGui::PopStyleColor();
+
+    if (end < text.length() - 1) {
+        ImGui::SameLine(0, 0);
+        selected |= ImGui::Selectable(text.substr(end).c_str());
+    }
+
+    return selected;
 }
