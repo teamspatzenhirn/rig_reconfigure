@@ -26,7 +26,7 @@ constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
 constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
-constexpr auto NODES_AUTO_REFRESH_INTERVAL = 5s; // unit: seconds
+constexpr auto NODES_AUTO_REFRESH_INTERVAL = 1s; // unit: seconds
 
 enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
