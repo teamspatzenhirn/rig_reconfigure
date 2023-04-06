@@ -34,9 +34,10 @@ static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
-                         std::size_t maxParamLength, const std::string &filterString,
-                         bool expandAll = false, const std::string &prefix = "");
+std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
+                                      const std::shared_ptr<ParameterGroup> &parameterNode,
+                                      std::size_t maxParamLength, const std::string &filterString,
+                                      bool expandAll = false, const std::string &prefix = "");
 void highlightedText(const std::string &text, std::size_t start, std::size_t end,
                      const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 
@@ -92,6 +93,9 @@ int main(int argc, char *argv[]) {
     std::string currentFilterString; // currently active filter string
     bool autoRefreshNodes = true;
     auto lastNodeRefreshTime = std::chrono::system_clock::now();
+    // unfortunately DearImGui doesn't provide any option to collapse tree nodes recursively, hence, we need to keep
+    // track of all the ID of each open tree node
+    std::set<ImGuiID> treeNodeIDs;
 
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
@@ -167,6 +171,8 @@ int main(int argc, char *argv[]) {
         } else if (nodeNameIndex != selectedIndex) {
             // selected node has changed
             selectedIndex = nodeNameIndex;
+
+            treeNodeIDs.clear();
 
             auto selectedNodeName = nodeNames.at(selectedIndex);
 
@@ -316,6 +322,15 @@ int main(int argc, char *argv[]) {
                 expandAllParameters = true;
             }
 
+            ImGui::SameLine();
+
+            if (ImGui::Button("Collapse all")) {
+                for (const auto id : treeNodeIDs) {
+                    ImGui::TreeNodeSetOpen(id, false);
+                }
+                treeNodeIDs.clear();
+            }
+
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
             ImGui::AlignTextToFramePadding();
@@ -331,9 +346,10 @@ int main(int argc, char *argv[]) {
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-            visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
-                                filteredParameterTree.getMaxParamNameLength(), currentFilterString,
-                                expandAllParameters);
+            const auto ids = visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
+                                                 filteredParameterTree.getMaxParamNameLength(), currentFilterString,
+                                                 expandAllParameters);
+            treeNodeIDs.insert(ids.begin(), ids.end());
 
             if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
                 status.clear();
@@ -385,9 +401,13 @@ int main(int argc, char *argv[]) {
     rclcpp::shutdown();
 }
 
-void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
-                         std::size_t maxParamLength, const std::string &filterString,
-                         const bool expandAll, const std::string &prefix) {
+std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
+                                         const std::shared_ptr<ParameterGroup> &parameterNode,
+                                         std::size_t maxParamLength, const std::string &filterString,
+                                         const bool expandAll, const std::string &prefix) {
+    std::set<ImGuiID> nodeIDs;
+    auto *window = ImGui::GetCurrentWindow();
+
     if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
         if (!filterString.empty()) {
             ImGui::Text("This node doesn't seem to have any parameters\nmatching the filter!");
@@ -395,7 +415,7 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
             ImGui::Text("This node doesn't seem to have any parameters!");
         }
 
-        return;
+        return {};
     }
 
     for (auto &[name, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
@@ -448,7 +468,13 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
                 ImGui::SetNextItemOpen(true);
             }
 
-            bool open = ImGui::TreeNode(("##" + subgroup->prefix).c_str());
+            const auto label = "##" + subgroup->prefix;
+
+            // this is hacky, we need the ID of the TreeNode in order to access the memory for collapsing it
+            nodeIDs.insert(window->GetID(label.c_str()));
+
+            bool open = ImGui::TreeNode(label.c_str());
+
             ImGui::SameLine();
             if (subgroup->prefixSearchPatternStart.has_value() && subgroup->prefixSearchPatternEnd.has_value()) {
                 highlightedText(subgroup->prefix, subgroup->prefixSearchPatternStart.value(),
@@ -458,12 +484,15 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
             }
 
             if (open) {
-                visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
-                                    expandAll, prefix + '/' + subgroup->prefix);
+                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
+                                                  expandAll, prefix + '/' + subgroup->prefix);
+                nodeIDs.insert(subIDs.begin(), subIDs.end());
                 ImGui::TreePop();
             }
         }
     }
+
+    return nodeIDs;
 }
 
 void highlightedText(const std::string &text, std::size_t start, std::size_t end, const ImVec4 &highlightColor) {
