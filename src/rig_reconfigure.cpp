@@ -10,31 +10,38 @@
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <cstdio>
 #include <vector>
+#include <chrono>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
 #include "misc/cpp/imgui_stdlib.h"
-#include "service_wrapper.hpp"
 #include "parameter_tree.hpp"
+#include "service_wrapper.hpp"
+
+using namespace std::chrono_literals;
 
 constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
 constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
+constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
+constexpr auto NODES_AUTO_REFRESH_INTERVAL = 1s; // unit: seconds
 
-enum class StatusTextType {
-    NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT
-};
+enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
 static void glfw_error_callback(int error, const char *description) {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
-                         std::size_t maxParamLength, const std::string &filterString, const std::string &prefix = "");
-void highlightedText(const std::string &text, std::size_t start, std::size_t end,
-                     const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
+static std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
+                                             const std::shared_ptr<ParameterGroup> &parameterNode,
+                                             std::size_t maxParamLength, const std::string &filterString,
+                                             bool expandAll = false, const std::string &prefix = "");
+static void highlightedText(const std::string &text, std::size_t start, std::size_t end,
+                            const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
+static bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
+                                      const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -72,18 +79,25 @@ int main(int argc, char *argv[]) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
+    ImGuiWindowFlags window_flags =
+            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
 
     int selectedIndex = -1;
+    int nodeNameIndex = -1;
     std::vector<std::string> nodeNames;
     std::string curSelectedNode;
     std::string status;
     StatusTextType statusType = StatusTextType::NONE;
-    ParameterTree parameterTree;
-    ParameterTree filteredParameterTree;
+    ParameterTree parameterTree;         // tree with all parameters
+    ParameterTree filteredParameterTree; // parameter tree after the application of the filter string
     bool reapplyFilter = true;
-    std::string filter;
-    std::string currentFilterString;
+    std::string filter;              // current filter string of the text input field
+    std::string currentFilterString; // currently active filter string
+    bool autoRefreshNodes = true;
+    auto lastNodeRefreshTime = std::chrono::system_clock::now();
+    // unfortunately DearImGui doesn't provide any option to collapse tree nodes recursively, hence, we need to keep
+    // track of all the ID of each open tree node
+    std::set<ImGuiID> treeNodeIDs;
 
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
@@ -92,6 +106,9 @@ int main(int argc, char *argv[]) {
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
+        // these variables are only relevant for a single iteration
+        bool expandAllParameters = false;
+
         // check the response queue
         auto response = serviceWrapper.tryPopResponse();
         serviceWrapper.checkForTimeouts();
@@ -125,8 +142,7 @@ int main(int argc, char *argv[]) {
                     if (result->success) {
                         status = "Parameter '" + result->parameterName + "' modified successfully!";
                     } else {
-                        status = "Parameter '" + result->parameterName
-                                 + "' couldn't be modified!";
+                        status = "Parameter '" + result->parameterName + "' couldn't be modified!";
                     }
                     statusType = StatusTextType::PARAMETER_CHANGED;
 
@@ -144,8 +160,22 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // handle changes of the selected node caused through refreshing / died nodes
-        if (!nodeNames.empty() && selectedIndex < nodeNames.size()) {
+        // handle changes of the selected node + died nodes / newly added nodes during the refresh step
+        const auto nodeNameIterator = std::find(nodeNames.begin(), nodeNames.end(), curSelectedNode);
+        bool nodeStillAvailable = (nodeNameIterator != nodeNames.end());
+        bool nameAtIndexChanged = (selectedIndex < nodeNames.size() && curSelectedNode != nodeNames.at(selectedIndex));
+
+        if (nodeNameIndex == selectedIndex && nameAtIndexChanged && nodeStillAvailable) {
+            // node list has changed, e.g. because new nodes have been started
+            // -> selected node does still exist, hence, we simply need to update the selected index
+            selectedIndex = std::distance(nodeNames.begin(), nodeNameIterator);
+            nodeNameIndex = selectedIndex;
+        } else if (nodeNameIndex != selectedIndex) {
+            // selected node has changed
+            selectedIndex = nodeNameIndex;
+
+            treeNodeIDs.clear();
+
             auto selectedNodeName = nodeNames.at(selectedIndex);
 
             if (selectedNodeName != curSelectedNode) {
@@ -155,9 +185,16 @@ int main(int argc, char *argv[]) {
                 serviceWrapper.setNodeOfInterest(curSelectedNode);
                 serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
             }
-        } else if (!curSelectedNode.empty()) {
-            curSelectedNode.clear();
-            parameterTree.clear();
+
+            // clear warning about died node if one switches to another one
+            if (statusType == StatusTextType::SERVICE_TIMEOUT) {
+                status.clear();
+                statusType = StatusTextType::NONE;
+            }
+        } else if (!curSelectedNode.empty()
+                   && (nodeNames.empty() || nameAtIndexChanged || selectedIndex >= nodeNames.size())) {
+            status = "Warning: Node '" + curSelectedNode + "' seems to have died!";
+            statusType = StatusTextType::SERVICE_TIMEOUT;
         }
 
         if (reapplyFilter == true || currentFilterString != filter) {
@@ -165,6 +202,13 @@ int main(int argc, char *argv[]) {
             currentFilterString = filter;
 
             filteredParameterTree = parameterTree.filter(currentFilterString);
+        }
+
+        // auto refresh the node list periodically
+        const auto currentTime = std::chrono::system_clock::now();
+        if (currentTime - lastNodeRefreshTime > NODES_AUTO_REFRESH_INTERVAL && autoRefreshNodes) {
+            lastNodeRefreshTime = currentTime;
+            serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
         }
 
         // Poll and handle events (inputs, window resize, etc.)
@@ -199,7 +243,12 @@ int main(int argc, char *argv[]) {
 
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("View")) {
-                ImGui::MenuItem("Reset Layout", nullptr, &shouldResetLayout);
+                ImGui::MenuItem("Reset layout", nullptr, &shouldResetLayout);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Nodes")) {
+                ImGui::MenuItem("Refresh periodically", nullptr, &autoRefreshNodes);
                 ImGui::EndMenu();
             }
             ImGui::EndMainMenuBar();
@@ -232,11 +281,11 @@ int main(int argc, char *argv[]) {
         } else {
             ImGui::Text("Available nodes:");
 
-            if (ImGui::BeginListBox("##Nodes", ImVec2(0, 500))) {
+            if (ImGui::BeginListBox("##Nodes", ImVec2(-1, 500))) {
                 for (auto i = 0U; i < nodeNames.size(); ++i) {
-                    const bool isSelected = (selectedIndex == i);
+                    const bool isSelected = (nodeNameIndex == i);
                     if (ImGui::Selectable(nodeNames[i].c_str(), isSelected)) {
-                        selectedIndex = i;
+                        nodeNameIndex = i;
                     }
                 }
                 ImGui::EndListBox();
@@ -263,14 +312,25 @@ int main(int argc, char *argv[]) {
 
         if (!curSelectedNode.empty()) {
             ImGui::Text("Parameters of '%s'", curSelectedNode.c_str());
-            ImGui::SameLine();
-
-            // a dynamic spacing would be nice here (essentially right aligning the button)
-            ImGui::Dummy(ImVec2(25.0f, 0.0f));
-            ImGui::SameLine();
+            ImGui::Dummy(ImVec2(0.0f, 5.0f));
 
             if (ImGui::Button("Reload parameters")) {
                 serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Expand all")) {
+                expandAllParameters = true;
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Collapse all")) {
+                for (const auto id : treeNodeIDs) {
+                    ImGui::TreeNodeSetOpen(id, false);
+                }
+                treeNodeIDs.clear();
             }
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
@@ -288,8 +348,10 @@ int main(int argc, char *argv[]) {
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
-            visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(), filteredParameterTree.getMaxParamNameLength(),
-                                currentFilterString);
+            const auto ids = visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
+                                                 filteredParameterTree.getMaxParamNameLength(), currentFilterString,
+                                                 expandAllParameters);
+            treeNodeIDs.insert(ids.begin(), ids.end());
 
             if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
                 status.clear();
@@ -302,7 +364,11 @@ int main(int argc, char *argv[]) {
         ImGui::End();
 
         ImGui::Begin("Status");
-        ImGui::Text("%s", status.c_str());
+        if (statusType == StatusTextType::SERVICE_TIMEOUT) {
+            ImGui::TextColored(STATUS_WARNING_COLOR, "%s", status.c_str());
+        } else {
+            ImGui::Text("%s", status.c_str());
+        }
         ImGui::End();
 
         ImGui::End();
@@ -337,8 +403,13 @@ int main(int argc, char *argv[]) {
     rclcpp::shutdown();
 }
 
-void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<ParameterGroup> &parameterNode,
-                         std::size_t maxParamLength, const std::string &filterString, const std::string &prefix) {
+std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
+                                         const std::shared_ptr<ParameterGroup> &parameterNode,
+                                         std::size_t maxParamLength, const std::string &filterString,
+                                         const bool expandAll, const std::string &prefix) {
+    std::set<ImGuiID> nodeIDs;
+    auto *window = ImGui::GetCurrentWindow();
+
     if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
         if (!filterString.empty()) {
             ImGui::Text("This node doesn't seem to have any parameters\nmatching the filter!");
@@ -346,13 +417,14 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
             ImGui::Text("This node doesn't seem to have any parameters!");
         }
 
-        return;
+        return {};
     }
 
     for (auto &[name, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
         std::string identifier = "##" + name;
 
-        // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired :D)
+        // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired
+        // :D)
         std::string padding;
         if (name.length() < maxParamLength) {
             padding = std::string(maxParamLength - name.length(), ' ');
@@ -373,16 +445,20 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
         ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
         std::string prefixWithName = prefix + '/' + name;
         if (std::holds_alternative<double>(value)) {
-            if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr, nullptr, "%.2f")) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+            if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
+                                  nullptr, "%.2f")) {
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         } else if (std::holds_alternative<bool>(value)) {
             if (ImGui::Checkbox(identifier.c_str(), &std::get<bool>(value))) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
             if (ImGui::DragInt(identifier.c_str(), &std::get<int>(value))) {
-                serviceWrapper.pushRequest(std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
             }
         }
         ImGui::PopItemWidth();
@@ -390,26 +466,45 @@ void visualizeParameters(ServiceWrapper &serviceWrapper, const std::shared_ptr<P
 
     if (!parameterNode->subgroups.empty()) {
         for (const auto &subgroup : parameterNode->subgroups) {
-            bool open = ImGui::TreeNode(("##" + subgroup->prefix).c_str());
+            if (expandAll) {
+                ImGui::SetNextItemOpen(true);
+            }
+
+            const auto label = "##" + subgroup->prefix;
+
+            // this is hacky, we need the ID of the TreeNode in order to access the memory for collapsing it
+            const auto nodeID = window->GetID(label.c_str());
+            nodeIDs.insert(nodeID);
+
+            bool open = ImGui::TreeNode(label.c_str());
+
             ImGui::SameLine();
+            bool textClicked = false;
             if (subgroup->prefixSearchPatternStart.has_value() && subgroup->prefixSearchPatternEnd.has_value()) {
-                highlightedText(subgroup->prefix, subgroup->prefixSearchPatternStart.value(),
-                                subgroup->prefixSearchPatternEnd.value());
+                textClicked = highlightedSelectableText(subgroup->prefix, subgroup->prefixSearchPatternStart.value(),
+                                                        subgroup->prefixSearchPatternEnd.value());
             } else {
-                ImGui::Text("%s", subgroup->prefix.c_str());
+                textClicked = ImGui::Selectable((subgroup->prefix).c_str());
+            }
+
+            if (textClicked) {
+                ImGui::TreeNodeSetOpen(nodeID, !open);
             }
 
             if (open) {
-                visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
-                                    prefix + '/' +  subgroup->prefix);
+                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
+                                                  expandAll, prefix + '/' + subgroup->prefix);
+                nodeIDs.insert(subIDs.begin(), subIDs.end());
                 ImGui::TreePop();
             }
         }
     }
+
+    return nodeIDs;
 }
 
-void highlightedText(const std::string &text, std::size_t start, std::size_t end,
-                     const ImVec4 &highlightColor) {
+
+void highlightedText(const std::string &text, std::size_t start, std::size_t end, const ImVec4 &highlightColor) {
     if (start == std::string::npos) {
         ImGui::Text("%s", text.c_str());
         return;
@@ -420,10 +515,38 @@ void highlightedText(const std::string &text, std::size_t start, std::size_t end
         ImGui::SameLine(0, 0);
     }
 
-    ImGui::TextColored(FILTER_HIGHLIGHTING_COLOR, "%s", text.substr(start, end - start).c_str());
+    ImGui::PushStyleColor(ImGuiCol_Text, FILTER_HIGHLIGHTING_COLOR);
+    ImGui::Text("%s", text.substr(start, end - start).c_str());
+    ImGui::PopStyleColor();
 
     if (end < text.length() - 1) {
         ImGui::SameLine(0, 0);
         ImGui::Text("%s", text.substr(end).c_str());
     }
+}
+
+bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
+                               const ImVec4 &highlightColor) {
+    bool selected = false;
+
+    if (start == std::string::npos) {
+        selected |= ImGui::Selectable(text.c_str());
+        return selected;
+    }
+
+    if (start > 0) {
+        selected |= ImGui::Selectable( text.substr(0, start).c_str());
+        ImGui::SameLine(0, 0);
+    }
+
+    ImGui::PushStyleColor(ImGuiCol_Text, FILTER_HIGHLIGHTING_COLOR);
+    selected |= ImGui::Selectable(text.substr(start, end - start).c_str());
+    ImGui::PopStyleColor();
+
+    if (end < text.length() - 1) {
+        ImGui::SameLine(0, 0);
+        selected |= ImGui::Selectable(text.substr(end).c_str());
+    }
+
+    return selected;
 }

@@ -94,7 +94,7 @@ void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNod
             // the prefix) + the pattern could be contained in the prefix and the parameter
             auto searchPatternPos = findCaseInsensitive(parameter.name, filterString);
 
-            if (searchPatternPos != std::string::npos) {
+            if (searchPatternPos != std::string::npos && !filterString.empty()) {
                 destinationNode->parameters.push_back(parameter);
                 destinationNode->parameters.back().searchPatternStart = searchPatternPos;
                 destinationNode->parameters.back().searchPatternEnd = searchPatternPos + filterString.length();
@@ -111,7 +111,7 @@ void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNod
         destinationNode->subgroups.push_back(std::make_shared<ParameterGroup>(subgroup->prefix));
 
         auto searchPatternPos = findCaseInsensitive(subgroup->prefix, filterString);
-        if (searchPatternPos != std::string::npos) {
+        if (searchPatternPos != std::string::npos && !filterString.empty()) {
             destinationNode->subgroups.back()->prefixSearchPatternStart = searchPatternPos;
             destinationNode->subgroups.back()->prefixSearchPatternEnd = searchPatternPos + filterString.length();
         }
