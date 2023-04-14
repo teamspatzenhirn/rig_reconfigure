@@ -32,6 +32,11 @@ The following features are not implemented yet, but would be nice to have. PRs a
 - support for array parameters
 - consideration of limits specified in the [parameter description](https://docs.ros2.org/galactic/api/rcl_interfaces/msg/ParameterDescriptor.html)
 
+## Known issues
+
+- CPU usage is high when using non-hardware-accelerated OpenGL implementation, which is usually the case in VNC connections
+- vsync via glfw doesn't work in VNC sessions (leading to even higher CPU usage), enable the manual frame rate limiting to reduce it
+
 ## Screenshots
 
 ![Screenshot of the parameter editor GUI](doc/screenshot_parameter_editor.png)

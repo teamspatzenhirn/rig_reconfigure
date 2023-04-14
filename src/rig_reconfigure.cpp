@@ -27,6 +27,8 @@ constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto NODES_AUTO_REFRESH_INTERVAL = 1s; // unit: seconds
+constexpr auto DESIRED_FRAME_RATE = 30;
+constexpr std::chrono::duration<float> DESIRED_FRAME_DURATION_MS = 1000ms / DESIRED_FRAME_RATE;
 
 enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
@@ -45,6 +47,14 @@ static bool highlightedSelectableText(const std::string &text, std::size_t start
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
+
+    bool manualFrameLimit = false;
+
+    // really simple argument parsing, intended to start the manual vsync automatically (e.g. use an alias to add
+    // the argument in the remote setup)
+    if (argc == 2 && std::string(argv[1]) == "--manual_framerate_limit") {
+        manualFrameLimit = true;
+    }
 
     ServiceWrapper serviceWrapper;
 
@@ -108,6 +118,8 @@ int main(int argc, char *argv[]) {
     while (!glfwWindowShouldClose(window)) {
         // these variables are only relevant for a single iteration
         bool expandAllParameters = false;
+
+        const auto frame_start = std::chrono::high_resolution_clock::now();
 
         // check the response queue
         auto response = serviceWrapper.tryPopResponse();
@@ -244,6 +256,7 @@ int main(int argc, char *argv[]) {
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("View")) {
                 ImGui::MenuItem("Reset layout", nullptr, &shouldResetLayout);
+                ImGui::MenuItem("Manual vsync", nullptr, &manualFrameLimit);
                 ImGui::EndMenu();
             }
 
@@ -251,6 +264,7 @@ int main(int argc, char *argv[]) {
                 ImGui::MenuItem("Refresh periodically", nullptr, &autoRefreshNodes);
                 ImGui::EndMenu();
             }
+
             ImGui::EndMainMenuBar();
         }
 
@@ -387,6 +401,17 @@ int main(int argc, char *argv[]) {
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
             glfwSwapBuffers(window);
+        }
+
+        // unfortunately vsync via glfw is broken for VNC sessions, hence, we need to emulate it manually
+        if (manualFrameLimit) {
+            const auto frame_end = std::chrono::high_resolution_clock::now();
+            const auto duration = duration_cast<std::chrono::milliseconds>(frame_end - frame_start);
+            const auto waitTime = DESIRED_FRAME_DURATION_MS - duration;
+
+            if (waitTime.count() > 0) {
+                std::this_thread::sleep_for(waitTime);
+            }
         }
     }
 

@@ -34,7 +34,11 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
 add_executable(${PROJECT_NAME} src/rig_reconfigure.cpp src/service_wrapper.cpp src/parameter_tree.cpp)
-target_compile_options(${PROJECT_NAME} PRIVATE -g)
+
+# uncomment for checking the executable with tsan
+#target_compile_options(${PROJECT_NAME} PRIVATE -g -fsanitize=thread)
+#target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
+
 target_include_directories(${PROJECT_NAME} PRIVATE include external/imspinner)
 target_link_libraries(${PROJECT_NAME} imgui)
 ament_target_dependencies(${PROJECT_NAME} rclcpp)
