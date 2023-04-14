@@ -32,6 +32,11 @@ The following features are not implemented yet, but would be nice to have. PRs a
 - support for array parameters
 - consideration of limits specified in the [parameter description](https://docs.ros2.org/galactic/api/rcl_interfaces/msg/ParameterDescriptor.html)
 
+## Known issues
+
+- CPU usage is higher than for other GUIs, could be related to the immediate mode framework (we focused mainly on usability during the development of rig_reconfigure)
+- vsync via glfw doesn't work in VNC sessions (leading to even higher CPU usage), enable the manual frame rate limiting to reduce it
+
 ## Screenshots
 
 ![Screenshot of the parameter editor GUI](doc/screenshot_parameter_editor.png)
