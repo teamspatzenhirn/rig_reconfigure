@@ -48,6 +48,14 @@ static bool highlightedSelectableText(const std::string &text, std::size_t start
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
 
+    bool manualFrameLimit = false;
+
+    // really simple argument parsing, intended to start the manual vsync automatically (e.g. use an alias to add
+    // the argument in the remote setup)
+    if (argc == 2 && std::string(argv[1]) == "--manual_framerate_limit") {
+        manualFrameLimit = true;
+    }
+
     ServiceWrapper serviceWrapper;
 
     // Setup window
@@ -95,7 +103,6 @@ int main(int argc, char *argv[]) {
     bool reapplyFilter = true;
     std::string filter;              // current filter string of the text input field
     std::string currentFilterString; // currently active filter string
-    bool manualVsync = false;
     bool autoRefreshNodes = true;
     auto lastNodeRefreshTime = std::chrono::system_clock::now();
     // unfortunately DearImGui doesn't provide any option to collapse tree nodes recursively, hence, we need to keep
@@ -249,7 +256,7 @@ int main(int argc, char *argv[]) {
         if (ImGui::BeginMainMenuBar()) {
             if (ImGui::BeginMenu("View")) {
                 ImGui::MenuItem("Reset layout", nullptr, &shouldResetLayout);
-                ImGui::MenuItem("Manual vsync", nullptr, &manualVsync);
+                ImGui::MenuItem("Manual vsync", nullptr, &manualFrameLimit);
                 ImGui::EndMenu();
             }
 
@@ -397,7 +404,7 @@ int main(int argc, char *argv[]) {
         }
 
         // unfortunately vsync via glfw is broken for VNC sessions, hence, we need to emulate it manually
-        if (manualVsync) {
+        if (manualFrameLimit) {
             const auto frame_end = std::chrono::high_resolution_clock::now();
             const auto duration = duration_cast<std::chrono::milliseconds>(frame_end - frame_start);
             const auto waitTime = DESIRED_FRAME_DURATION_MS - duration;
