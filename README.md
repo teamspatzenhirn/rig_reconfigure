@@ -34,7 +34,7 @@ The following features are not implemented yet, but would be nice to have. PRs a
 
 ## Known issues
 
-- CPU usage is higher than for other GUIs, could be related to the immediate mode framework (we focused mainly on usability during the development of rig_reconfigure)
+- CPU usage is high when using non-hardware-accelerated OpenGL implementation, which is usually the case in VNC connections
 - vsync via glfw doesn't work in VNC sessions (leading to even higher CPU usage), enable the manual frame rate limiting to reduce it
 
 ## Screenshots
