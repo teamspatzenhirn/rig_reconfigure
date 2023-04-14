@@ -60,6 +60,7 @@ class ServiceWrapper {
     std::thread rosThread;                ///< Thread for spinning the ROS node.
     std::promise<bool> terminationHelper; ///< Helper future for terminating the ROS thread.
 
+    std::mutex unfinishedROSRequestsMutex;
     std::vector<std::shared_ptr<FutureTimeoutContainer>> unfinishedROSRequests;
 
     std::shared_ptr<rclcpp::Node> node;

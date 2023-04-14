@@ -56,6 +56,7 @@ void ServiceWrapper::terminate() {
 void ServiceWrapper::checkForTimeouts() {
     // check for timeouts
     auto curTime = std::chrono::system_clock::now();
+    std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
     for (auto &unfinishedRequest : unfinishedROSRequests) {
         if ((curTime - unfinishedRequest->timeSent) > ROS_SERVICE_TIMEOUT) {
             responseQueue.push(std::make_shared<ServiceTimeout>(nodeName));
@@ -120,12 +121,16 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
 
             auto callbackLambda = [&, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture future) {
+                std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
                 nodeParametersReceived(std::forward<decltype(future)>(future), timeoutPtr);
             };
 
             listParametersClient->async_send_request(serviceRequest, callbackLambda);
 
-            unfinishedROSRequests.push_back(timeoutPtr);
+            {
+                std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
+                unfinishedROSRequests.push_back(timeoutPtr);
+            }
             break;
         }
 
@@ -138,12 +143,16 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
 
             auto callbackLambda = [&, parameters=valueRequest->parameterNames, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
+                std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
                 parameterValuesReceived(std::forward<decltype(future)>(future), parameters, timeoutPtr);
             };
 
             getParametersClient->async_send_request(serviceRequest, callbackLambda);
 
-            unfinishedROSRequests.push_back(timeoutPtr);
+            {
+                std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
+                unfinishedROSRequests.push_back(timeoutPtr);
+            }
             break;
         }
 
@@ -186,6 +195,7 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
 
             setParametersClient->async_send_request(update, callbackLambda);
 
+            std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
             unfinishedROSRequests.push_back(timeoutPtr);
         }
 
