@@ -445,7 +445,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         return {};
     }
 
-    for (auto &[name, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
+    for (auto &[name, fullPath, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
         std::string identifier = "##" + name;
 
         // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired

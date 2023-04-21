@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cstring>
 
+constexpr auto SEPARATORS = "/.\\";
+
 // declaration of utility functions
 bool recursivelyRemoveEmptySubgroups(const std::shared_ptr<ParameterGroup> &curNode);
 std::size_t findCaseInsensitive(const std::string &string, const std::string &pattern);
@@ -20,14 +22,14 @@ ParameterTree::ParameterTree() : root(std::make_shared<ParameterGroup>()) {
 }
 
 void ParameterTree::add(const ROSParameter &parameter) {
-    add(root, parameter);
+    add(root, TreeElement(parameter, parameter.name));
 }
 void ParameterTree::clear() {
     root = std::make_shared<ParameterGroup>();
 }
 
-void ParameterTree::add(const std::shared_ptr<ParameterGroup> &curNode, const ROSParameter &parameter) {
-    auto prefixStart = parameter.name.find('/');
+void ParameterTree::add(const std::shared_ptr<ParameterGroup> &curNode, const TreeElement &parameter) {
+    auto prefixStart = parameter.name.find_first_of(SEPARATORS);
     if (prefixStart == std::string::npos) {
         curNode->parameters.emplace_back(parameter);
         maxParamNameLength = std::max(maxParamNameLength, parameter.name.length());
@@ -51,7 +53,7 @@ void ParameterTree::add(const std::shared_ptr<ParameterGroup> &curNode, const RO
         curNode->subgroups.emplace_back(nextNode);
     }
 
-    add(nextNode, ROSParameter(remainingName, parameter.value));
+    add(nextNode, TreeElement(remainingName, parameter.fullPath, parameter.value));
 }
 
 std::shared_ptr<ParameterGroup> ParameterTree::getRoot() {
