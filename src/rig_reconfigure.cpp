@@ -39,7 +39,7 @@ static void glfw_error_callback(int error, const char *description) {
 static std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                              const std::shared_ptr<ParameterGroup> &parameterNode,
                                              std::size_t maxParamLength, const std::string &filterString,
-                                             bool expandAll = false, const std::string &prefix = "");
+                                             bool expandAll = false);
 static void highlightedText(const std::string &text, std::size_t start, std::size_t end,
                             const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 static bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
@@ -431,7 +431,7 @@ int main(int argc, char *argv[]) {
 std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                          const std::shared_ptr<ParameterGroup> &parameterNode,
                                          std::size_t maxParamLength, const std::string &filterString,
-                                         const bool expandAll, const std::string &prefix) {
+                                         const bool expandAll) {
     std::set<ImGuiID> nodeIDs;
     auto *window = ImGui::GetCurrentWindow();
 
@@ -468,27 +468,27 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
 
         ImGui::SameLine();
         ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
-        std::string prefixWithName = prefix + '/' + name;
+
         if (std::holds_alternative<double>(value)) {
             if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
                                   nullptr, "%.6g")) {
                 serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<bool>(value)) {
             if (ImGui::Checkbox(identifier.c_str(), &std::get<bool>(value))) {
                 serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
             if (ImGui::DragInt(identifier.c_str(), &std::get<int>(value))) {
                 serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<std::string>(value)) {
             if (ImGui::InputText(identifier.c_str(), &std::get<std::string>(value))) {
                 serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(prefixWithName, value)));
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         }
         ImGui::PopItemWidth();
@@ -523,7 +523,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
 
             if (open) {
                 auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
-                                                  expandAll, prefix + '/' + subgroup->prefix);
+                                                  expandAll);
                 nodeIDs.insert(subIDs.begin(), subIDs.end());
                 ImGui::TreePop();
             }
