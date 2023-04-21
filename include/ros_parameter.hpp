@@ -11,7 +11,6 @@
 
 #include <string>
 #include <variant>
-#include <optional>
 
 // TODO: add arrays
 using ROSParameterVariant = std::variant<bool, int, double, std::string>;
