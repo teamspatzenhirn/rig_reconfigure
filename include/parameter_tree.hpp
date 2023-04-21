@@ -40,7 +40,7 @@ struct TreeElement {
     ROSParameterVariant value;
 
     // in case this parameter is part of a filtered parameter tree the following two members store the intermediate
-    // information where in the name the applied search pattern is located
+    // information where in the name (not the fullPath!) the applied search pattern is located
     std::optional<std::size_t> searchPatternStart;
     std::optional<std::size_t> searchPatternEnd;
 };
@@ -75,8 +75,7 @@ class ParameterTree {
 
     void filter(const std::shared_ptr<ParameterGroup> &destinationNode,
                 const std::shared_ptr<ParameterGroup> &sourceNode,
-                const std::string &filterString,
-                const std::string &prefix) const;
+                const std::string &filterString) const;
 
     std::shared_ptr<ParameterGroup> root = nullptr;
 

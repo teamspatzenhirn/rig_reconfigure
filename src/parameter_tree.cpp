@@ -9,7 +9,6 @@
 #include "parameter_tree.hpp"
 
 #include <algorithm>
-#include <cstring>
 
 constexpr auto SEPARATORS = "/.\\";
 
@@ -70,30 +69,28 @@ ParameterTree ParameterTree::filter(const std::string &filterString) const {
     filteredTree.maxParamNameLength = maxParamNameLength;
 
     // first pass: filter all parameters
-    filter(filteredTree.getRoot(), root, filterString, "");
+    filter(filteredTree.getRoot(), root, filterString);
 
-    // second pass: remove empty subgroups (multiple passes since our tree has no parent pointer)
+    // second pass: remove empty subgroups
     filteredTree.removeEmptySubgroups();
-
 
     return filteredTree;
 }
 
 void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNode,
                            const std::shared_ptr<ParameterGroup> &sourceNode,
-                           const std::string &filterString,
-                           const std::string &prefix) const {
+                           const std::string &filterString) const {
     if (destinationNode == nullptr || sourceNode == nullptr) {
         return;
     }
 
     // filter parameters
     for (const auto &parameter : sourceNode->parameters) {
-        auto fullParameterName = prefix + '/' + parameter.name;
-        const auto pos = findCaseInsensitive(fullParameterName, filterString);
+
+        const auto pos = findCaseInsensitive(parameter.fullPath, filterString);
         if (pos != std::string::npos) {
-            // we need to realign the position of the pattern because the parameter stores only the name (without
-            // the prefix) + the pattern could be contained in the prefix and the parameter
+            // we need to realign the position of the pattern because start and end positions of the pattern
+            // are defined as within the parameter name (not the full path with prefixes)
             auto searchPatternPos = findCaseInsensitive(parameter.name, filterString);
 
             if (searchPatternPos != std::string::npos && !filterString.empty()) {
@@ -109,7 +106,6 @@ void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNod
 
     // filter subgroups
     for (const auto &subgroup : sourceNode->subgroups) {
-        auto newPrefix = prefix + '/' + subgroup->prefix;
         destinationNode->subgroups.push_back(std::make_shared<ParameterGroup>(subgroup->prefix));
 
         auto searchPatternPos = findCaseInsensitive(subgroup->prefix, filterString);
@@ -118,7 +114,7 @@ void ParameterTree::filter(const std::shared_ptr<ParameterGroup> &destinationNod
             destinationNode->subgroups.back()->prefixSearchPatternEnd = searchPatternPos + filterString.length();
         }
 
-        filter(destinationNode->subgroups.back(), subgroup, filterString, newPrefix);
+        filter(destinationNode->subgroups.back(), subgroup, filterString);
     }
 }
 
