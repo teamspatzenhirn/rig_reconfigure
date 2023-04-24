@@ -2,8 +2,8 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.1.0 (2023-04-24)
+------------------
 * Accept more parameter path separators
 * allow scientific notation for float-parameters
 * Manual FPS limiting for VNC sessions
