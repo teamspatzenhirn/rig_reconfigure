@@ -11,22 +11,16 @@
 
 #include <string>
 #include <variant>
-#include <optional>
+
+// TODO: add arrays
+using ROSParameterVariant = std::variant<bool, int, double, std::string>;
 
 struct ROSParameter {
-    ROSParameter(std::string name, std::variant<bool, int, double, std::string> value,
-                 std::optional<std::size_t> searchPatternStart = std::nullopt,
-                 std::optional<std::size_t> searchPatternEnd = std::nullopt) : name(std::move(name)), value(std::move(value)),
-        searchPatternStart(searchPatternStart), searchPatternEnd(searchPatternEnd) {};
+    ROSParameter(std::string name, ROSParameterVariant value) :
+        name(std::move(name)), value(std::move(value)) {};
 
     std::string name;
-    // TODO: add arrays
-    std::variant<bool, int, double, std::string> value;
-
-    // in case this parameter is part of a filtered parameter tree the following two members store the intermediate
-    // information where in the name the applied search pattern is located
-    std::optional<std::size_t> searchPatternStart;
-    std::optional<std::size_t> searchPatternEnd;
+    ROSParameterVariant value;
 };
 
 #endif // RIG_RECONFIGURE_ROS_PARAMETER_HPP
