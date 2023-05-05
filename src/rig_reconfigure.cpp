@@ -29,6 +29,7 @@ constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto NODES_AUTO_REFRESH_INTERVAL = 1s; // unit: seconds
 constexpr auto DESIRED_FRAME_RATE = 30;
 constexpr std::chrono::duration<float> DESIRED_FRAME_DURATION_MS = 1000ms / DESIRED_FRAME_RATE;
+constexpr auto TEXT_INPUT_EDITING_END_CHARACTERS = "\n";
 
 enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
@@ -432,6 +433,11 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                          const std::shared_ptr<ParameterGroup> &parameterNode,
                                          std::size_t maxParamLength, const std::string &filterString,
                                          const bool expandAll) {
+    // required to store which of the text input fields is 'dirty' (has changes which have not yet been propagated to
+    // the ROS service (because editing has not yet been finished))
+    // --> since ImGui only allows a single active input field storing the path of the corresponding parameter is enough
+    static std::string dirtyTextInput;
+
     std::set<ImGuiID> nodeIDs;
     auto *window = ImGui::GetCurrentWindow();
 
@@ -486,7 +492,25 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<std::string>(value)) {
+            bool flush = false;
+
+            // Note: ImGui provides an option to provide only callbacks on enter, but we additionally need the
+            //       information whether the text field is 'dirty', hence, we need to check for 'enter'
+            //       by ourselves
             if (ImGui::InputText(identifier.c_str(), &std::get<std::string>(value))) {
+                dirtyTextInput = fullPath;
+
+                auto &str = std::get<std::string>(value);
+
+                // check if last character indicates the end of the editing
+                if (str.ends_with(TEXT_INPUT_EDITING_END_CHARACTERS)) {
+                    flush = true;
+                    str.pop_back();
+                }
+            }
+
+            if (flush || (!ImGui::IsItemActive() && dirtyTextInput == fullPath)) {
+                dirtyTextInput.clear();
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
