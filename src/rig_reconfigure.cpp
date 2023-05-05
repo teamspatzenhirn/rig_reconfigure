@@ -90,9 +90,6 @@ int main(int argc, char *argv[]) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    ImGuiWindowFlags window_flags =
-            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
-
     int selectedIndex = -1;
     int nodeNameIndex = -1;
     std::vector<std::string> nodeNames;
