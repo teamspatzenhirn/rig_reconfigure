@@ -22,7 +22,11 @@
 
 using namespace std::chrono_literals;
 
-constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
+/// Minimum width specified for text input fields.
+constexpr auto MIN_INPUT_TEXT_FIELD_WIDTH = 100;
+/// Width of the window reserved for padding (e.g. between parameter name and input field) in case the width of the
+/// input field is scaled using the window width.
+constexpr auto TEXT_INPUT_FIELD_PADDING = 225;
 constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
@@ -39,8 +43,8 @@ static void glfw_error_callback(int error, const char *description) {
 
 static std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                              const std::shared_ptr<ParameterGroup> &parameterNode,
-                                             std::size_t maxParamLength, const std::string &filterString,
-                                             bool expandAll = false);
+                                             std::size_t maxParamLength, std::size_t textfieldWidth,
+                                             const std::string &filterString, bool expandAll = false);
 static void highlightedText(const std::string &text, std::size_t start, std::size_t end,
                             const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 static bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
@@ -322,6 +326,8 @@ int main(int argc, char *argv[]) {
 
         ImGui::Begin("Parameters");
 
+        const auto curWindowWidth = static_cast<int>(ImGui::GetWindowSize().x);
+
         if (!curSelectedNode.empty()) {
             ImGui::Text("Parameters of '%s'", curSelectedNode.c_str());
             ImGui::Dummy(ImVec2(0.0f, 5.0f));
@@ -360,8 +366,11 @@ int main(int argc, char *argv[]) {
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
+            const auto maxParamLength = filteredParameterTree.getMaxParamNameLength();
+            const auto textfieldWidth = std::max(MIN_INPUT_TEXT_FIELD_WIDTH, curWindowWidth - static_cast<int>(maxParamLength) - TEXT_INPUT_FIELD_PADDING);
+
             const auto ids = visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
-                                                 filteredParameterTree.getMaxParamNameLength(), currentFilterString,
+                                                 maxParamLength, textfieldWidth, currentFilterString,
                                                  expandAllParameters);
             treeNodeIDs.insert(ids.begin(), ids.end());
 
@@ -427,9 +436,11 @@ int main(int argc, char *argv[]) {
 }
 
 std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
-                                         const std::shared_ptr<ParameterGroup> &parameterNode,
-                                         std::size_t maxParamLength, const std::string &filterString,
-                                         const bool expandAll) {
+                                      const std::shared_ptr<ParameterGroup> &parameterNode,
+                                      const std::size_t maxParamLength,
+                                      const std::size_t textfieldWidth,
+                                      const std::string &filterString,
+                                      const bool expandAll) {
     // required to store which of the text input fields is 'dirty' (has changes which have not yet been propagated to
     // the ROS service (because editing has not yet been finished))
     // --> since ImGui only allows a single active input field storing the path of the corresponding parameter is enough
@@ -470,7 +481,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::Text("%s", padding.c_str());
 
         ImGui::SameLine();
-        ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
+        ImGui::PushItemWidth(textfieldWidth);
 
         if (std::holds_alternative<double>(value)) {
             if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
@@ -543,8 +554,8 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             }
 
             if (open) {
-                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString,
-                                                  expandAll);
+                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, textfieldWidth,
+                                                  filterString, expandAll);
                 nodeIDs.insert(subIDs.begin(), subIDs.end());
                 ImGui::TreePop();
             }
