@@ -481,7 +481,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::Text("%s", padding.c_str());
 
         ImGui::SameLine();
-        ImGui::PushItemWidth(textfieldWidth);
+        ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
 
         if (std::holds_alternative<double>(value)) {
             if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
