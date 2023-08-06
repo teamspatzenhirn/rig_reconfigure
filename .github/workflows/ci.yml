@@ -13,6 +13,7 @@ jobs:
         run: |
           . /opt/ros/$ROS_DISTRO/setup.sh
           cd $GITHUB_WORKSPACE/..
+          apt update
           rosdep update
           rosdep install --from-paths rig_reconfigure
       - name: Build
