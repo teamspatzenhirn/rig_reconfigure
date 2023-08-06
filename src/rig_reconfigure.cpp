@@ -27,7 +27,9 @@ constexpr auto MIN_INPUT_TEXT_FIELD_WIDTH = 100;
 /// Width of the window reserved for padding (e.g. between parameter name and input field) in case the width of the
 /// input field is scaled using the window width.
 constexpr auto TEXT_INPUT_FIELD_PADDING = 100;
-constexpr auto TEXT_FIELD_WITH_REDUCTION_PER_LEVEL = 22;
+/// Reduction of the text field width per nesting level (necessary to avoid input field spanning across the window
+/// borders)
+constexpr auto TEXT_FIELD_WIDTH_REDUCTION_PER_LEVEL = 22;
 constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
@@ -555,7 +557,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             }
 
             if (open) {
-                const auto newWidth = textfieldWidth - TEXT_FIELD_WITH_REDUCTION_PER_LEVEL;
+                const auto newWidth = textfieldWidth - TEXT_FIELD_WIDTH_REDUCTION_PER_LEVEL;
                 auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, newWidth,
                                                   filterString, expandAll);
                 nodeIDs.insert(subIDs.begin(), subIDs.end());
