@@ -15,7 +15,7 @@ jobs:
           cd $GITHUB_WORKSPACE/..
           apt update
           rosdep update
-          rosdep install --from-paths rig_reconfigure
+          rosdep install -y --from-paths rig_reconfigure
       - name: Build
         run: |
           . /opt/ros/$ROS_DISTRO/setup.sh
