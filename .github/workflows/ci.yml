@@ -9,6 +9,12 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
+      - name: Install depdendencies
+        run: |
+          . /opt/ros/$ROS_DISTRO/setup.sh
+          cd $GITHUB_WORKSPACE/..
+          rosdep update
+          rosdep install --from-paths rig_reconfigure
       - name: Build
         run: |
           . /opt/ros/$ROS_DISTRO/setup.sh
