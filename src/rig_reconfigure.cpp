@@ -8,14 +8,16 @@
 
 
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
-#include <cstdio>
-#include <vector>
 #include <chrono>
+#include <cstdio>
+#include <filesystem>
+#include <vector>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
+#include "lodepng.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "parameter_tree.hpp"
 #include "service_wrapper.hpp"
@@ -75,6 +77,28 @@ int main(int argc, char *argv[]) {
         return 1;
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
+
+    // load window icon
+    auto logoPath = std::filesystem::path(argv[0]).parent_path().append("resources/icon.png");
+
+    std::vector<unsigned char> iconData;
+    unsigned int width;
+    unsigned int height;
+
+    unsigned error = lodepng::decode(iconData, width, height, logoPath.string());
+
+    if (!error) {
+        GLFWimage icon;
+
+        icon.width = static_cast<int>(width);
+        icon.height = static_cast<int>(height);
+        icon.pixels = iconData.data();
+
+        glfwSetWindowIcon(window, 1, &icon);
+    } else {
+        std::cerr << "Unable to load window icon (decoder error " << error << " - " << lodepng_error_text(error)
+                  << ")" << std::endl;
+    }
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
