@@ -1,0 +1,23 @@
+name: Build
+
+on: push
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    container: ros:iron
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+      - name: Install depdendencies
+        run: |
+          . /opt/ros/$ROS_DISTRO/setup.sh
+          cd $GITHUB_WORKSPACE/..
+          apt update
+          rosdep update
+          rosdep install -y --from-paths rig_reconfigure
+      - name: Build
+        run: |
+          . /opt/ros/$ROS_DISTRO/setup.sh
+          cd $GITHUB_WORKSPACE/..
+          colcon build --packages-select rig_reconfigure
