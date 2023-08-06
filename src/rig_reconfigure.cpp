@@ -503,6 +503,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<std::string>(value)) {
+            // Set to true when enter is pressed
             bool flush = false;
 
             // Note: ImGui provides an option to provide only callbacks on enter, but we additionally need the
@@ -520,6 +521,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 }
             }
 
+            // Second condition: InputText focus lost
             if (flush || (!ImGui::IsItemActive() && dirtyTextInput == fullPath)) {
                 dirtyTextInput.clear();
                 serviceWrapper.pushRequest(
