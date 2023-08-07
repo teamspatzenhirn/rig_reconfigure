@@ -1,9 +1,7 @@
 [Desktop Entry]
 Type=Application
-Encoding=UTF-8
 Name=RIG Reconfigure
 Comment=GUI tool for editing ROS 2 parameters at runtime
 Exec=bash -c "ros2 run rig_reconfigure rig_reconfigure"
 Icon=rig_reconfigure
-Terminal=False
-Categories=ROS;
+Terminal=false
