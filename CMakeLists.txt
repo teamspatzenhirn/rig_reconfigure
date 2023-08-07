@@ -11,7 +11,7 @@ find_package(rclcpp REQUIRED)
 include(FetchContent)
 FetchContent_Declare(imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
-        GIT_TAG 3ea0fad204e994d669f79ed29dcaf61cd5cb571d # latest docking branch at time of writing
+        GIT_TAG v1.89.8-docking
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
         )
@@ -47,8 +47,16 @@ install(TARGETS ${PROJECT_NAME}
         DESTINATION lib/${PROJECT_NAME}
 )
 
-install(FILES resources/icon.png
-        DESTINATION lib/${PROJECT_NAME}/resources
+install(FILES resource/rig_reconfigure.png
+        DESTINATION share/${PROJECT_NAME}/resource
+)
+
+install(FILES resource/rig_reconfigure.svg
+        DESTINATION share/icons/hicolor/scalable/apps
+)
+
+install(FILES resource/rig_reconfigure.desktop
+        DESTINATION share/applications
 )
 
 ament_package()

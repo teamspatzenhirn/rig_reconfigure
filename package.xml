@@ -12,6 +12,7 @@
     <buildtool_depend>git</buildtool_depend>
     <depend>libglfw3-dev</depend>
     <depend>rclcpp</depend>
+    <depend>ament_index_cpp</depend>
 
     <export>
         <build_type>ament_cmake</build_type>
