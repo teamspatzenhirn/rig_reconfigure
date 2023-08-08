@@ -25,13 +25,21 @@
 
 using namespace std::chrono_literals;
 
-constexpr auto INPUT_TEXT_FIELD_WIDTH = 100;
+/// Minimum width specified for text input fields.
+constexpr auto MIN_INPUT_TEXT_FIELD_WIDTH = 100;
+/// Width of the window reserved for padding (e.g. between parameter name and input field) in case the width of the
+/// input field is scaled using the window width.
+constexpr auto TEXT_INPUT_FIELD_PADDING = 100;
+/// Reduction of the text field width per nesting level (necessary to avoid input field spanning across the window
+/// borders)
+constexpr auto TEXT_FIELD_WIDTH_REDUCTION_PER_LEVEL = 22;
 constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
 constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto NODES_AUTO_REFRESH_INTERVAL = 1s; // unit: seconds
 constexpr auto DESIRED_FRAME_RATE = 30;
 constexpr std::chrono::duration<float> DESIRED_FRAME_DURATION_MS = 1000ms / DESIRED_FRAME_RATE;
+constexpr auto TEXT_INPUT_EDITING_END_CHARACTERS = "\n";
 
 enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
@@ -41,8 +49,8 @@ static void glfw_error_callback(int error, const char *description) {
 
 static std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                              const std::shared_ptr<ParameterGroup> &parameterNode,
-                                             std::size_t maxParamLength, const std::string &filterString,
-                                             bool expandAll = false);
+                                             std::size_t maxParamLength, std::size_t textfieldWidth,
+                                             const std::string &filterString, bool expandAll = false);
 static void highlightedText(const std::string &text, std::size_t start, std::size_t end,
                             const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 static bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
@@ -122,9 +130,6 @@ int main(int argc, char *argv[]) {
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
-
-    ImGuiWindowFlags window_flags =
-            ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
 
     int selectedIndex = -1;
     int nodeNameIndex = -1;
@@ -358,6 +363,8 @@ int main(int argc, char *argv[]) {
 
         ImGui::Begin("Parameters");
 
+        const auto curWindowWidth = static_cast<int>(ImGui::GetWindowSize().x);
+
         if (!curSelectedNode.empty()) {
             ImGui::Text("Parameters of '%s'", curSelectedNode.c_str());
             ImGui::Dummy(ImVec2(0.0f, 5.0f));
@@ -396,8 +403,11 @@ int main(int argc, char *argv[]) {
 
             ImGui::Dummy(ImVec2(0.0f, 10.0f));
 
+            const auto maxParamLength = filteredParameterTree.getMaxParamNameLength();
+            const auto textfieldWidth = std::max(MIN_INPUT_TEXT_FIELD_WIDTH, curWindowWidth - static_cast<int>(maxParamLength) - TEXT_INPUT_FIELD_PADDING);
+
             const auto ids = visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
-                                                 filteredParameterTree.getMaxParamNameLength(), currentFilterString,
+                                                 maxParamLength, textfieldWidth, currentFilterString,
                                                  expandAllParameters);
             treeNodeIDs.insert(ids.begin(), ids.end());
 
@@ -463,8 +473,16 @@ int main(int argc, char *argv[]) {
 }
 
 std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
-                                      const std::shared_ptr<ParameterGroup> &parameterNode, std::size_t maxParamLength,
-                                      const std::string &filterString, const bool expandAll) {
+                                      const std::shared_ptr<ParameterGroup> &parameterNode,
+                                      const std::size_t maxParamLength,
+                                      const std::size_t textfieldWidth,
+                                      const std::string &filterString,
+                                      const bool expandAll) {
+    // required to store which of the text input fields is 'dirty' (has changes which have not yet been propagated to
+    // the ROS service (because editing has not yet been finished))
+    // --> since ImGui only allows a single active input field storing the path of the corresponding parameter is enough
+    static std::string dirtyTextInput;
+
     std::set<ImGuiID> nodeIDs;
     auto *window = ImGui::GetCurrentWindow();
 
@@ -500,7 +518,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::Text("%s", padding.c_str());
 
         ImGui::SameLine();
-        ImGui::PushItemWidth(INPUT_TEXT_FIELD_WIDTH);
+        ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
 
         if (std::holds_alternative<double>(value)) {
             if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
@@ -519,7 +537,27 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<std::string>(value)) {
+            // Set to true when enter is pressed
+            bool flush = false;
+
+            // Note: ImGui provides an option to provide only callbacks on enter, but we additionally need the
+            //       information whether the text field is 'dirty', hence, we need to check for 'enter'
+            //       by ourselves
             if (ImGui::InputText(identifier.c_str(), &std::get<std::string>(value))) {
+                dirtyTextInput = fullPath;
+
+                auto &str = std::get<std::string>(value);
+
+                // check if last character indicates the end of the editing
+                if (str.ends_with(TEXT_INPUT_EDITING_END_CHARACTERS)) {
+                    flush = true;
+                    str.pop_back();
+                }
+            }
+
+            // Second condition: InputText focus lost
+            if (flush || (!ImGui::IsItemActive() && dirtyTextInput == fullPath)) {
+                dirtyTextInput.clear();
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
@@ -555,7 +593,9 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             }
 
             if (open) {
-                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, filterString, expandAll);
+                const auto newWidth = textfieldWidth - TEXT_FIELD_WIDTH_REDUCTION_PER_LEVEL;
+                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, newWidth,
+                                                  filterString, expandAll);
                 nodeIDs.insert(subIDs.begin(), subIDs.end());
                 ImGui::TreePop();
             }
