@@ -9,6 +9,8 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - name: Install depdendencies
         run: |
           . /opt/ros/$ROS_DISTRO/setup.sh
