@@ -11,7 +11,7 @@ find_package(rclcpp REQUIRED)
 include(FetchContent)
 FetchContent_Declare(imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
-        GIT_TAG 3ea0fad204e994d669f79ed29dcaf61cd5cb571d # latest docking branch at time of writing
+        GIT_TAG v1.89.8-docking
         CONFIGURE_COMMAND ""
         BUILD_COMMAND ""
         )
@@ -33,18 +33,30 @@ set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
-add_executable(${PROJECT_NAME} src/rig_reconfigure.cpp src/service_wrapper.cpp src/parameter_tree.cpp)
+add_executable(${PROJECT_NAME} src/rig_reconfigure.cpp src/service_wrapper.cpp src/parameter_tree.cpp external/lodepng/lodepng.cpp)
 
 # uncomment for checking the executable with tsan
 #target_compile_options(${PROJECT_NAME} PRIVATE -g -fsanitize=thread)
 #target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
 
-target_include_directories(${PROJECT_NAME} PRIVATE include external/imspinner)
+target_include_directories(${PROJECT_NAME} PRIVATE include external/imspinner external/lodepng)
 target_link_libraries(${PROJECT_NAME} imgui)
 ament_target_dependencies(${PROJECT_NAME} rclcpp)
 
 install(TARGETS ${PROJECT_NAME}
         DESTINATION lib/${PROJECT_NAME}
+)
+
+install(FILES resource/rig_reconfigure.png
+        DESTINATION share/${PROJECT_NAME}/resource
+)
+
+install(FILES resource/rig_reconfigure.svg
+        DESTINATION share/icons/hicolor/scalable/apps
+)
+
+install(FILES resource/rig_reconfigure.desktop
+        DESTINATION share/applications
 )
 
 ament_package()

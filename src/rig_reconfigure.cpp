@@ -8,14 +8,17 @@
 
 
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
+#include <ament_index_cpp/get_package_prefix.hpp>
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <cstdio>
+#include <filesystem>
 #include <vector>
-#include <chrono>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
+#include "lodepng.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "parameter_tree.hpp"
 #include "service_wrapper.hpp"
@@ -84,6 +87,37 @@ int main(int argc, char *argv[]) {
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
+    // load window icon
+    auto logoPath = std::filesystem::path(argv[0]).parent_path().append("resource/rig_reconfigure.png");
+
+    try {
+        // Try getting package share dir via ament, and use that if it succeeds.
+        logoPath = ament_index_cpp::get_package_share_directory("rig_reconfigure");
+        logoPath.append("resource/rig_reconfigure.png");
+    } catch (ament_index_cpp::PackageNotFoundError &e) {
+        std::cerr << "Warning: Error while looking for package share directory to find the app icon: " << e.what()
+                  << "\n";
+    }
+
+    std::vector<unsigned char> iconData;
+    unsigned int width;
+    unsigned int height;
+
+    unsigned error = lodepng::decode(iconData, width, height, logoPath.string());
+
+    if (!error) {
+        GLFWimage icon;
+
+        icon.width = static_cast<int>(width);
+        icon.height = static_cast<int>(height);
+        icon.pixels = iconData.data();
+
+        glfwSetWindowIcon(window, 1, &icon);
+    } else {
+        std::cerr << "Unable to load window icon (decoder error " << error << " - " << lodepng_error_text(error) << ")"
+                  << std::endl;
+    }
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -106,8 +140,8 @@ int main(int argc, char *argv[]) {
     ParameterTree parameterTree;         // tree with all parameters
     ParameterTree filteredParameterTree; // parameter tree after the application of the filter string
     bool reapplyFilter = true;
-    std::string filter;              // current filter string of the text input field
-    std::string currentFilterString; // currently active filter string
+    std::string filter;                  // current filter string of the text input field
+    std::string currentFilterString;     // currently active filter string
     bool autoRefreshNodes = true;
     auto lastNodeRefreshTime = std::chrono::system_clock::now();
     // unfortunately DearImGui doesn't provide any option to collapse tree nodes recursively, hence, we need to keep
@@ -208,8 +242,8 @@ int main(int argc, char *argv[]) {
                 status.clear();
                 statusType = StatusTextType::NONE;
             }
-        } else if (!curSelectedNode.empty()
-                   && (nodeNames.empty() || nameAtIndexChanged || selectedIndex >= nodeNames.size())) {
+        } else if (!curSelectedNode.empty() &&
+                   (nodeNames.empty() || nameAtIndexChanged || selectedIndex >= nodeNames.size())) {
             status = "Warning: Node '" + curSelectedNode + "' seems to have died!";
             statusType = StatusTextType::SERVICE_TIMEOUT;
         }
@@ -603,7 +637,7 @@ bool highlightedSelectableText(const std::string &text, std::size_t start, std::
     }
 
     if (start > 0) {
-        selected |= ImGui::Selectable( text.substr(0, start).c_str());
+        selected |= ImGui::Selectable(text.substr(0, start).c_str());
         ImGui::SameLine(0, 0);
     }
 
