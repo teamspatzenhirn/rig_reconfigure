@@ -2,6 +2,13 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Improvements for handling string parameters (sending update only once editing is complete)
+* Add window icon
+* Add desktop file
+* Contributors: Dominik, Jonas Otto
+
 1.1.0 (2023-04-24)
 ------------------
 * Accept more parameter path separators
