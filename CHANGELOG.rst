@@ -2,8 +2,8 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.2.0 (2023-08-11)
+------------------
 * Improvements for handling string parameters (sending update only once editing is complete)
 * Add window icon
 * Add desktop file
