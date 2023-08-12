@@ -41,6 +41,8 @@ constexpr auto DESIRED_FRAME_RATE = 30;
 constexpr std::chrono::duration<float> DESIRED_FRAME_DURATION_MS = 1000ms / DESIRED_FRAME_RATE;
 constexpr auto TEXT_INPUT_EDITING_END_CHARACTERS = "\n";
 
+const char *gitHash = "demo_hash";
+
 enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
 static void glfw_error_callback(int error, const char *description) {
@@ -55,6 +57,10 @@ static void highlightedText(const std::string &text, std::size_t start, std::siz
                             const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
 static bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
                                       const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
+
+static std::filesystem::path findResourcePath(const std::string &execPath);
+static void loadWindowIcon(GLFWwindow *windowPtr, const std::filesystem::path &resourcePath);
+static void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourcePath);
 
 int main(int argc, char *argv[]) {
     rclcpp::init(argc, argv);
@@ -87,36 +93,9 @@ int main(int argc, char *argv[]) {
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
-    // load window icon
-    auto logoPath = std::filesystem::path(argv[0]).parent_path().append("resource/rig_reconfigure.png");
+    const auto resourcePath = findResourcePath(argv[0]);
 
-    try {
-        // Try getting package share dir via ament, and use that if it succeeds.
-        logoPath = ament_index_cpp::get_package_share_directory("rig_reconfigure");
-        logoPath.append("resource/rig_reconfigure.png");
-    } catch (ament_index_cpp::PackageNotFoundError &e) {
-        std::cerr << "Warning: Error while looking for package share directory to find the app icon: " << e.what()
-                  << "\n";
-    }
-
-    std::vector<unsigned char> iconData;
-    unsigned int width;
-    unsigned int height;
-
-    unsigned error = lodepng::decode(iconData, width, height, logoPath.string());
-
-    if (!error) {
-        GLFWimage icon;
-
-        icon.width = static_cast<int>(width);
-        icon.height = static_cast<int>(height);
-        icon.pixels = iconData.data();
-
-        glfwSetWindowIcon(window, 1, &icon);
-    } else {
-        std::cerr << "Unable to load window icon (decoder error " << error << " - " << lodepng_error_text(error) << ")"
-                  << std::endl;
-    }
+    loadWindowIcon(window, resourcePath);
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -152,6 +131,7 @@ int main(int argc, char *argv[]) {
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
 
     bool shouldResetLayout = true;
+    bool showInfo = false;
 
     // Main loop
     while (!glfwWindowShouldClose(window)) {
@@ -304,8 +284,15 @@ int main(int argc, char *argv[]) {
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("Info")) {
+                ImGui::MenuItem("Show info", nullptr, &showInfo);
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMainMenuBar();
         }
+
+        renderInfoWindow(&showInfo, resourcePath);
 
         if (ImGui::DockBuilderGetNode(dockspace_id) == NULL || shouldResetLayout) {
             shouldResetLayout = false;
@@ -651,4 +638,106 @@ bool highlightedSelectableText(const std::string &text, std::size_t start, std::
     }
 
     return selected;
+}
+
+std::filesystem::path findResourcePath(const std::string &execPath) {
+    auto resourcePath = std::filesystem::path(execPath).parent_path().append("resource");
+
+    try {
+        // Try getting package share dir via ament, and use that if it succeeds.
+        resourcePath = ament_index_cpp::get_package_share_directory("rig_reconfigure");
+        resourcePath.append("resource");
+    } catch (ament_index_cpp::PackageNotFoundError &e) {
+        std::cerr << "Warning: Error while looking for package share directory: " << e.what()
+                  << "\n";
+    }
+
+    return resourcePath;
+}
+
+void loadWindowIcon(GLFWwindow *windowPtr, const std::filesystem::path &resourcePath) {
+    const auto logoPath = resourcePath / "rig_reconfigure.png";
+
+    std::vector<unsigned char> iconData;
+    unsigned int width;
+    unsigned int height;
+
+    unsigned int error = lodepng::decode(iconData, width, height, logoPath.string());
+
+    if (error == 0) {
+        GLFWimage icon;
+
+        icon.width = static_cast<int>(width);
+        icon.height = static_cast<int>(height);
+        icon.pixels = iconData.data();
+
+        glfwSetWindowIcon(windowPtr, 1, &icon);
+    } else {
+        std::cerr << "Unable to load window icon (decoder error " << error << " - " << lodepng_error_text(error) << ")"
+                  << std::endl;
+    }
+}
+
+void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourcePath) {
+    // load the logo with text only once
+    static GLuint imageTexture;
+    static unsigned int width = 0;
+    static unsigned int height = 0;
+    static bool imageLoaded = false;
+
+    if (!imageLoaded) {
+        auto logoPath = resourcePath / "rig_reconfigure_text.png";
+
+        std::vector<unsigned char> imageData;
+
+        unsigned int error = lodepng::decode(imageData, width, height, logoPath.string());
+
+        if (error == 0) {
+            glGenTextures(1, &imageTexture);
+            glBindTexture(GL_TEXTURE_2D, imageTexture);
+
+            // Setup filtering parameters for display
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+#if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
+            glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+#endif
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData.data());
+        }
+
+        imageLoaded = true;
+    }
+
+    if (*showInfoWindow) {
+        ImGui::Begin("Info", showInfoWindow, ImGuiWindowFlags_AlwaysAutoResize);
+
+        if (width != 0 && height != 0) {
+            ImGui::Image((void*)(intptr_t)imageTexture,
+                         ImVec2(static_cast<float>(width), static_cast<float>(height)));
+        } else {
+            ImGui::Text("RIG-reconfigure");
+        }
+
+        ImGui::Text(" ");
+        ImGui::Text("Version: %s", gitHash);
+        ImGui::Text(" ");
+
+        ImGui::Text("Created in spring 2023 by");
+        ImGui::Text(" ");
+        ImGui::Text("Dominik Authaler");
+        ImGui::Text("Jonas Otto");
+        ImGui::Text(" ");
+        ImGui::Text("Sources available at https://github.com/teamspatzenhirn/rig_reconfigure");
+        ImGui::Text("under MIT license. Pull requests extending the functionality / fixing");
+        ImGui::Text("bugs are always welcome!");
+        ImGui::Text(" ");
+        ImGui::Text("This tool has been created while the authors have been part of Team Spatzenhirn,");
+        ImGui::Text("a group of students at Ulm University. If you like the tool, please consider");
+        ImGui::Text("supporting the team (e.g. by joining if you're studying at Ulm University).");
+
+        ImGui::End();
+    }
 }
