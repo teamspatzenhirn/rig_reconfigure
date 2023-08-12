@@ -23,6 +23,8 @@
 #include "parameter_tree.hpp"
 #include "service_wrapper.hpp"
 
+#include "git_version.hpp"
+
 using namespace std::chrono_literals;
 
 /// Minimum width specified for text input fields.
@@ -40,8 +42,6 @@ constexpr auto NODES_AUTO_REFRESH_INTERVAL = 1s; // unit: seconds
 constexpr auto DESIRED_FRAME_RATE = 30;
 constexpr std::chrono::duration<float> DESIRED_FRAME_DURATION_MS = 1000ms / DESIRED_FRAME_RATE;
 constexpr auto TEXT_INPUT_EDITING_END_CHARACTERS = "\n";
-
-const char *gitHash = "demo_hash";
 
 enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
@@ -718,14 +718,14 @@ void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourc
             ImGui::Image((void*)(intptr_t)imageTexture,
                          ImVec2(static_cast<float>(width), static_cast<float>(height)));
         } else {
-            ImGui::Text("RIG-reconfigure");
+            ImGui::Text("rig-reconfigure");
         }
 
         ImGui::Text(" ");
         ImGui::Text("Version: %s", gitHash);
         ImGui::Text(" ");
 
-        ImGui::Text("Created in spring 2023 by");
+        ImGui::Text("Created in winter 2022 by");
         ImGui::Text(" ");
         ImGui::Text("Dominik Authaler");
         ImGui::Text("Jonas Otto");
@@ -735,7 +735,7 @@ void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourc
         ImGui::Text("bugs are always welcome!");
         ImGui::Text(" ");
         ImGui::Text("This tool has been created while the authors have been part of Team Spatzenhirn,");
-        ImGui::Text("a group of students at Ulm University. If you like the tool, please consider");
+        ImGui::Text("a student team at Ulm University. If you like rig-reconfigure, please consider");
         ImGui::Text("supporting the team (e.g. by joining if you're studying at Ulm University).");
 
         ImGui::End();
