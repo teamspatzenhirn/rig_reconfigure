@@ -1,6 +1,10 @@
 # adapted from https://gitlab.com/jhamberg/cmake-examples/-/blob/master/cmake/CheckGit.cmake
 
 set(CURRENT_LIST_DIR ${CMAKE_CURRENT_LIST_DIR})
+if (NOT DEFINED pre_configure_inc_dir)
+    set(pre_configure_inc_dir ${CMAKE_SOURCE_DIR}/include)
+endif ()
+
 if (NOT DEFINED pre_configure_dir)
     set(pre_configure_dir ${CMAKE_SOURCE_DIR}/src)
 endif ()
@@ -40,7 +44,7 @@ function(CheckGitVersion)
     endif ()
 
     if (NOT EXISTS ${post_configure_dir}/git_version.hpp)
-        file(COPY ${pre_configure_dir}/git_version.hpp DESTINATION ${post_configure_dir})
+        file(COPY ${pre_configure_inc_dir}/git_version.hpp DESTINATION ${post_configure_dir})
     endif()
 
     if (NOT DEFINED GIT_HASH_CACHE)
@@ -63,6 +67,7 @@ function(CheckGitSetup)
 
     add_custom_target(AlwaysCheckGit COMMAND ${CMAKE_COMMAND}
             -DRUN_CHECK_GIT_VERSION=1
+            -Dpre_configure_inc_dir=${pre_configure_inc_dir}
             -Dpre_configure_dir=${pre_configure_dir}
             -Dpost_configure_file=${post_configure_dir}
             -DGIT_HASH_CACHE=${GIT_HASH_CACHE}

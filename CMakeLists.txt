@@ -51,7 +51,7 @@ install(TARGETS ${PROJECT_NAME}
         DESTINATION lib/${PROJECT_NAME}
 )
 
-install(FILES resource/rig_reconfigure.png
+install(FILES resource/rig_reconfigure.png resource/rig_reconfigure_text.png
         DESTINATION share/${PROJECT_NAME}/resource
 )
 
