@@ -11,6 +11,8 @@ jobs:
         uses: actions/checkout@v3
         with:
           submodules: recursive
+      - name: Configure git checkout as safe directory to allow dubious permission-setup
+        run: git config --system --add safe.directory $GITHUB_WORKSPACE
       - name: Install depdendencies
         run: |
           . /opt/ros/$ROS_DISTRO/setup.sh
