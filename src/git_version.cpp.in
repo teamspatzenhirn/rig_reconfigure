@@ -1,0 +1,15 @@
+/**
+ * @file   git_version.cpp.in
+ * @author Dominik Authaler
+ * @date   12.08.2023
+ *
+ * Utility file for including the hash of the latest commit within the executable.
+ * Based on https://jonathanhamberg.com/post/cmake-embedding-git-hash/.
+ *
+ * Note that this file is preprocessed by cmake before being forwarded to the compiler (this allows replacing
+ * the variable placeholder with the corresponding commit hash).
+ */
+
+#include "git_version.hpp"
+
+const char *gitHash = "@GIT_HASH@";
