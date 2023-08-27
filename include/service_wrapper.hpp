@@ -31,8 +31,16 @@ struct FutureTimeoutContainer {
     bool timeoutReached = false;
 };
 
+/**
+ * Utility class wrapping all the ROS related calls.
+ */
 class ServiceWrapper {
   public:
+    /**
+     * Constructor.
+     * @param ignoreDefaultParameters_ Decides, whether the default parameters (like 'use_sim_time') are ignored
+     *                                 within the visualization.
+     */
     explicit ServiceWrapper(bool ignoreDefaultParameters_ = true);
 
     void terminate();
