@@ -19,7 +19,7 @@ struct Request {
         TERMINATE, QUERY_NODE_NAMES, QUERY_NODE_PARAMETERS, QUERY_PARAMETER_VALUES, MODIFY_PARAMETER_VALUE
     };
 
-    explicit Request(Type type) : type(type) {};
+    explicit Request(Type type_) : type(type_) {};
     virtual ~Request() = default;
 
     Type type;
@@ -28,13 +28,13 @@ struct Request {
 using RequestPtr = std::shared_ptr<Request>;
 
 struct ParameterValueRequest : Request {
-    explicit ParameterValueRequest(const std::vector<std::string> &parameterNames) : Request(Type::QUERY_PARAMETER_VALUES), parameterNames(parameterNames) {};
+    explicit ParameterValueRequest(const std::vector<std::string> &parameterNames_) : Request(Type::QUERY_PARAMETER_VALUES), parameterNames(parameterNames_) {};
 
     std::vector<std::string> parameterNames;
 };
 
 struct ParameterModificationRequest : Request {
-    ParameterModificationRequest(ROSParameter updatedParameter) : Request(Type::MODIFY_PARAMETER_VALUE), parameter(std::move(updatedParameter)) {};
+    ParameterModificationRequest(ROSParameter updatedParameter_) : Request(Type::MODIFY_PARAMETER_VALUE), parameter(std::move(updatedParameter_)) {};
 
     ROSParameter parameter;
 };

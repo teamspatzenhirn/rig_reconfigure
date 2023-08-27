@@ -19,17 +19,17 @@
  * for the parameter tree.
  */
 struct TreeElement {
-    TreeElement(const ROSParameter &parameter, std::string fullParameterPath,
-                std::optional<std::size_t> patternStart = std::nullopt,
-                std::optional<std::size_t> patternEnd = std::nullopt) :
-        name(parameter.name), fullPath(std::move(fullParameterPath)), value(parameter.value),
-        searchPatternStart(patternStart), searchPatternEnd(patternEnd) {};
+    TreeElement(const ROSParameter &parameter_, std::string fullParameterPath_,
+                std::optional<std::size_t> patternStart_ = std::nullopt,
+                std::optional<std::size_t> patternEnd_ = std::nullopt) :
+        name(parameter_.name), fullPath(std::move(fullParameterPath_)), value(parameter_.value),
+        searchPatternStart(patternStart_), searchPatternEnd(patternEnd_) {};
 
-    TreeElement(std::string name, std::string fullParameterPath, ROSParameterVariant value,
-                std::optional<std::size_t> patternStart = std::nullopt,
-                std::optional<std::size_t> patternEnd = std::nullopt) :
-        name(std::move(name)), fullPath(std::move(fullParameterPath)), value(std::move(value)),
-        searchPatternStart(patternStart), searchPatternEnd(patternEnd) {};
+    TreeElement(std::string name_, std::string fullParameterPath_, ROSParameterVariant value_,
+                std::optional<std::size_t> patternStart_ = std::nullopt,
+                std::optional<std::size_t> patternEnd_ = std::nullopt) :
+        name(std::move(name_)), fullPath(std::move(fullParameterPath_)), value(std::move(value_)),
+        searchPatternStart(patternStart_), searchPatternEnd(patternEnd_) {};
 
     std::string name; // parameter name without prefixes
 
@@ -46,7 +46,7 @@ struct TreeElement {
 };
 
 struct ParameterGroup {
-    explicit ParameterGroup(std::string prefix = "") : prefix(std::move(prefix)) {};
+    explicit ParameterGroup(std::string prefix_ = "") : prefix(std::move(prefix_)) {};
 
     std::string prefix;
     std::optional<std::size_t> prefixSearchPatternStart;

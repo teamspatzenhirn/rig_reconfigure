@@ -16,8 +16,8 @@
 using ROSParameterVariant = std::variant<bool, int, double, std::string>;
 
 struct ROSParameter {
-    ROSParameter(std::string name, ROSParameterVariant value) :
-        name(std::move(name)), value(std::move(value)) {};
+    ROSParameter(std::string name_, ROSParameterVariant value_) :
+        name(std::move(name_)), value(std::move(value_)) {};
 
     std::string name;
     ROSParameterVariant value;

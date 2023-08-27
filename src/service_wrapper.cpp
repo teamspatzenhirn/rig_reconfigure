@@ -13,16 +13,7 @@ using namespace std::chrono_literals;
 
 constexpr auto ROS_SERVICE_TIMEOUT = 1s;
 
-template <typename T>
-bool checkServiceAvailability(T &serviceClient, std::chrono::seconds &timeout) {
-    if (!serviceClient->wait_for_service(timeout) || !rclcpp::ok()) {
-        return false;
-    }
-
-    return true;
-}
-
-ServiceWrapper::ServiceWrapper(bool ignoreDefaultParameters) : ignoreDefaultParameters(ignoreDefaultParameters) {
+ServiceWrapper::ServiceWrapper(bool ignoreDefaultParameters_) : ignoreDefaultParameters(ignoreDefaultParameters_) {
     node = rclcpp::Node::make_shared("rig_reconfigure");
 
     executor.add_node(node);
@@ -204,7 +195,7 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
     }
 }
 
-void ServiceWrapper::nodeParametersReceived(rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture future,
+void ServiceWrapper::nodeParametersReceived(const rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture &future,
                                             const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
     auto valueRequest = std::make_shared<ParameterValueRequest>(future.get()->result.names);
 
@@ -220,7 +211,7 @@ void ServiceWrapper::nodeParametersReceived(rclcpp::Client<rcl_interfaces::srv::
     requestQueue.push(std::move(valueRequest));
 }
 
-void ServiceWrapper::parameterValuesReceived(rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future,
+void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture &future,
                                              const std::vector<std::string> &parameterNames,
                                              const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
     auto response = std::make_shared<ParameterValueResponse>();
@@ -253,7 +244,7 @@ void ServiceWrapper::parameterValuesReceived(rclcpp::Client<rcl_interfaces::srv:
     responseQueue.push(response);
 }
 
-void ServiceWrapper::parameterModificationResponseReceived(rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture future,
+void ServiceWrapper::parameterModificationResponseReceived(const rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture &future,
                                                            const std::string &parameterName,
                                                            const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
     const auto &resultMsg = future.get();

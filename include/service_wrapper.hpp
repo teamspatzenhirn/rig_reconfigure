@@ -33,7 +33,7 @@ struct FutureTimeoutContainer {
 
 class ServiceWrapper {
   public:
-    explicit ServiceWrapper(bool ignoreDefaultParameters = true);
+    explicit ServiceWrapper(bool ignoreDefaultParameters_ = true);
 
     void terminate();
 
@@ -72,12 +72,12 @@ class ServiceWrapper {
     rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedPtr setParametersClient;
 
     // callbacks for the results of the futures
-    void nodeParametersReceived(rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture future,
+    void nodeParametersReceived(const rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture &future,
                                 const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
-    void parameterValuesReceived(rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future,
+    void parameterValuesReceived(const rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture &future,
                                  const std::vector<std::string> &parameterNames,
                                  const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
-    void parameterModificationResponseReceived(rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture future,
+    void parameterModificationResponseReceived(const rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture &future,
                                                const std::string &parameterName,
                                                const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
 };
