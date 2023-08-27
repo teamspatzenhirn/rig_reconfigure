@@ -16,6 +16,8 @@ constexpr auto ROS_SERVICE_TIMEOUT = 1s;
 ServiceWrapper::ServiceWrapper(bool ignoreDefaultParameters_) : ignoreDefaultParameters(ignoreDefaultParameters_) {
     node = rclcpp::Node::make_shared("rig_reconfigure");
 
+    ownNodeName = std::string("/") + node->get_name();
+
     executor.add_node(node);
 
     thread = std::thread(&ServiceWrapper::threadFunc, this);
@@ -100,15 +102,34 @@ void ServiceWrapper::threadFunc() {
 void ServiceWrapper::handleRequest(const RequestPtr &request) {
     switch (request->type) {
         case Request::Type::QUERY_NODE_NAMES: {
-            auto response = std::make_shared<NodeNameResponse>(node->get_node_names());
+            // we are only interested in nodes which provide the parameter services and thus
+            // query directly the service names (instead of the node names via get_node_names())
+            const auto serviceMap = node->get_service_names_and_types();
 
-            // ignore node used for querying the services and ros2cli daemon nodes
-            std::erase_if(response->nodeNames, [nodeName=std::string("/") + node->get_name()](const std::string &s) {
-                return (s == nodeName) || s.starts_with("/_ros2cli_daemon_");
-            });
+            std::vector<std::string> nodeNames;
+            for (const auto &[serviceName, _] : serviceMap) {
+                // assumption: a node providing the list_parameters service hopefully also provides the services
+                //             for requesting and modifying parameter values
+                const auto idx = serviceName.find("/list_parameters");
+
+                if (idx == std::string::npos) {
+                    continue;
+                }
+
+                const std::string extractedNodeName = serviceName.substr(0, idx);
+
+                // ignore node used for querying the services and ros2cli daemon nodes
+                if (extractedNodeName == ownNodeName || extractedNodeName.starts_with("/_ros2cli_daemon_")) {
+                    continue;
+                }
+
+                nodeNames.push_back(extractedNodeName);
+            }
 
             // sort nodes alphabetically
-            std::sort(response->nodeNames.begin(), response->nodeNames.end());
+            std::sort(nodeNames.begin(), nodeNames.end());
+
+            auto response = std::make_shared<NodeNameResponse>(std::move(nodeNames));
 
             responseQueue.push(response);
             break;
