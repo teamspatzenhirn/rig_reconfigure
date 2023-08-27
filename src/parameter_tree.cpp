@@ -1,7 +1,7 @@
 /**
  * @file   parameter_tree.cpp
  * @author Dominik Authaler
- * @date   24.01.2022
+ * @date   24.01.2023
  *
  * Utility class for organizing parameters as a tree according to their prefix.
  */

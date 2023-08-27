@@ -1,7 +1,7 @@
 /**
  * @file   responses.hpp
  * @author Dominik Authaler
- * @date   22.01.2022
+ * @date   22.01.2023
  *
  * Possible responses which can be received from the service wrapper.
  */
@@ -18,7 +18,7 @@ struct Response {
         NODE_NAMES, PARAMETERS, MODIFICATION_RESULT, SERVICE_TIMEOUT
     };
 
-    explicit Response(Type type) : type(type) {};
+    explicit Response(Type type_) : type(type_) {};
     virtual ~Response() = default;
 
     Type type;
@@ -27,7 +27,7 @@ struct Response {
 using ResponsePtr = std::shared_ptr<Response>;
 
 struct NodeNameResponse : public Response {
-    explicit NodeNameResponse(const std::vector<std::string> &nodeNames) : Response(Type::NODE_NAMES), nodeNames(nodeNames) {};
+    explicit NodeNameResponse(const std::vector<std::string> &nodeNames_) : Response(Type::NODE_NAMES), nodeNames(nodeNames_) {};
 
     std::vector<std::string> nodeNames;
 };
@@ -39,9 +39,9 @@ struct ParameterValueResponse : public Response {
 };
 
 struct ParameterModificationResponse : public Response {
-    ParameterModificationResponse(std::string parameterName, bool success, std::string reason) :
-        Response(Type::MODIFICATION_RESULT), parameterName(std::move(parameterName)), success(success),
-        reason(std::move(reason)) {};
+    ParameterModificationResponse(std::string parameterName_, bool success_, std::string reason_) :
+        Response(Type::MODIFICATION_RESULT), parameterName(std::move(parameterName_)), success(success_),
+        reason(std::move(reason_)) {};
 
     std::string parameterName;
     bool success;
@@ -49,7 +49,7 @@ struct ParameterModificationResponse : public Response {
 };
 
 struct ServiceTimeout : public Response {
-    ServiceTimeout(std::string nodeName) : Response(Type::SERVICE_TIMEOUT), nodeName(std::move(nodeName)) {};
+    explicit ServiceTimeout(std::string nodeName_) : Response(Type::SERVICE_TIMEOUT), nodeName(std::move(nodeName_)) {};
 
     std::string nodeName;
 };

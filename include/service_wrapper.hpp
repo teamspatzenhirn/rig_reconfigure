@@ -1,7 +1,7 @@
 /**
  * @file   service_wrapper.hpp
  * @author Dominik Authaler
- * @date   22.01.2022
+ * @date   22.01.2023
  *
  * Utility class wrapping all the service related calls.
  */
@@ -31,9 +31,17 @@ struct FutureTimeoutContainer {
     bool timeoutReached = false;
 };
 
+/**
+ * Utility class wrapping all the ROS related calls.
+ */
 class ServiceWrapper {
   public:
-    explicit ServiceWrapper(bool ignoreDefaultParameters = true);
+    /**
+     * Constructor.
+     * @param ignoreDefaultParameters_ Decides, whether the default parameters (like 'use_sim_time') are ignored
+     *                                 within the visualization.
+     */
+    explicit ServiceWrapper(bool ignoreDefaultParameters_ = true);
 
     void terminate();
 
@@ -72,12 +80,12 @@ class ServiceWrapper {
     rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedPtr setParametersClient;
 
     // callbacks for the results of the futures
-    void nodeParametersReceived(rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture future,
+    void nodeParametersReceived(const rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture &future,
                                 const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
-    void parameterValuesReceived(rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future,
+    void parameterValuesReceived(const rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture &future,
                                  const std::vector<std::string> &parameterNames,
                                  const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
-    void parameterModificationResponseReceived(rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture future,
+    void parameterModificationResponseReceived(const rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture &future,
                                                const std::string &parameterName,
                                                const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
 };
