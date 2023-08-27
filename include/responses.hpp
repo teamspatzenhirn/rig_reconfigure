@@ -1,7 +1,7 @@
 /**
  * @file   responses.hpp
  * @author Dominik Authaler
- * @date   22.01.2022
+ * @date   22.01.2023
  *
  * Possible responses which can be received from the service wrapper.
  */

@@ -1,7 +1,7 @@
 /**
  * @file   queue.hpp
  * @author Dominik Authaler
- * @date   22.01.2022
+ * @date   22.01.2023
  *
  * Utility class providing a thread safe queue.
  */

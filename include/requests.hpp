@@ -1,7 +1,7 @@
 /**
  * @file   requests.hpp
  * @author Dominik Authaler
- * @date   22.01.2022
+ * @date   22.01.2023
  *
  * Possible requests which can be send to the service wrapper.
  */

@@ -1,7 +1,7 @@
 /**
  * @file   ros_parameter.hpp
  * @author Dominik Authaler
- * @date   24.01.2022
+ * @date   24.01.2023
  *
  * Utility class for representing a ROS parameter.
  */
