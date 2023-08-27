@@ -62,8 +62,17 @@ void ServiceWrapper::checkForTimeouts() {
 }
 
 void ServiceWrapper::setNodeOfInterest(const std::string &name) {
-    // TODO: cancel any requests related to the previously selected node?
-    //       Maybe this is already done in the destructor of the client?
+    if (listParametersClient) {
+        listParametersClient->prune_pending_requests();
+    }
+
+    if (getParametersClient) {
+        getParametersClient->prune_pending_requests();
+    }
+
+    if (setParametersClient) {
+        setParametersClient->prune_pending_requests();
+    }
 
     nodeName = name;
 
