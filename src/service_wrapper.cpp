@@ -14,9 +14,9 @@ using namespace std::chrono_literals;
 constexpr auto ROS_SERVICE_TIMEOUT = 1s;
 
 ServiceWrapper::ServiceWrapper(bool ignoreDefaultParameters_) : ignoreDefaultParameters(ignoreDefaultParameters_) {
-    node = rclcpp::Node::make_shared("rig_reconfigure");
-
-    ownNodeName = std::string("/") + node->get_name();
+    // according to https://design.ros2.org/articles/topic_and_service_names.html an underscore indicates
+    // hidden nodes
+    node = rclcpp::Node::make_shared("_rig_reconfigure");
 
     executor.add_node(node);
 
@@ -118,8 +118,8 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
 
                 const std::string extractedNodeName = serviceName.substr(0, idx);
 
-                // ignore node used for querying the services and ros2cli daemon nodes
-                if (extractedNodeName == ownNodeName || extractedNodeName.starts_with("/_ros2cli_daemon_")) {
+                // ignore 'hidden' nodes (like the ros2cli daemon nodes)
+                if (extractedNodeName.starts_with("/_")) {
                     continue;
                 }
 

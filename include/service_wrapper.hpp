@@ -57,8 +57,6 @@ class ServiceWrapper {
     void threadFunc();
     void handleRequest(const RequestPtr &request);
 
-    std::string ownNodeName;
-
     Queue<RequestPtr> requestQueue;
     Queue<ResponsePtr> responseQueue;
 
