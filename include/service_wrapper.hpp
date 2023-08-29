@@ -63,7 +63,7 @@ class ServiceWrapper {
     std::atomic_bool terminateThread = false;
 
     bool ignoreDefaultParameters;
-    std::string nodeName;
+    std::string nodeName;                 ///< Name of the node of interest.
     std::thread thread;                   ///< Thread for offloading the creation of requests from the GPU thread.
     std::thread rosThread;                ///< Thread for spinning the ROS node.
     std::promise<bool> terminationHelper; ///< Helper future for terminating the ROS thread.
