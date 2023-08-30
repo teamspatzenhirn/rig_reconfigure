@@ -2,6 +2,13 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Only list nodes providing the parameter service (`#23 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/23>`_)
+* Cleanup (`#22 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/22>`_)
+* Info window (`#21 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/21>`_)
+* Contributors: Dominik
+
 1.2.0 (2023-08-11)
 ------------------
 * Improvements for handling string parameters (sending update only once editing is complete)
