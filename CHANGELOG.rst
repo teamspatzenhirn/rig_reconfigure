@@ -2,8 +2,8 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.1 (2023-09-01)
+------------------
 * remove git version information in info window (`#24 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/24>`_)
 * Contributors: Jonas Otto
 
