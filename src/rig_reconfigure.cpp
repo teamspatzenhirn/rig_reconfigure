@@ -23,8 +23,6 @@
 #include "parameter_tree.hpp"
 #include "service_wrapper.hpp"
 
-#include "git_version.hpp"
-
 using namespace std::chrono_literals;
 
 /// Minimum width specified for text input fields.
@@ -722,9 +720,6 @@ void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourc
         }
 
         ImGui::Text(" ");
-        ImGui::Text("Version: %s", gitHash);
-        ImGui::Text(" ");
-
         ImGui::Text("Created in winter 2022 by");
         ImGui::Text(" ");
         ImGui::Text("Dominik Authaler");

@@ -7,10 +7,6 @@ set(CMAKE_CXX_STANDARD 20)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 
-# embedding of latest commit hash within the executable
-include(cmake/CheckGit.cmake)
-CheckGitSetup()
-
 # Download imgui
 include(FetchContent)
 FetchContent_Declare(imgui
@@ -44,7 +40,7 @@ add_executable(${PROJECT_NAME} src/rig_reconfigure.cpp src/service_wrapper.cpp s
 #target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
 
 target_include_directories(${PROJECT_NAME} PRIVATE include external/imspinner external/lodepng)
-target_link_libraries(${PROJECT_NAME} imgui git_version)
+target_link_libraries(${PROJECT_NAME} imgui)
 ament_target_dependencies(${PROJECT_NAME} rclcpp)
 
 install(TARGETS ${PROJECT_NAME}
