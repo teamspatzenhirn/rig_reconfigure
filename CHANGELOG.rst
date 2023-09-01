@@ -2,8 +2,8 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.3.2 (2023-09-01)
+------------------
 * add dominik as maintainer
 * Contributors: Jonas Otto
 
