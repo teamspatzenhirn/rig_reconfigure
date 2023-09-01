@@ -6,6 +6,7 @@
     <description>Standalone GUI tool for editing node parameters at runtime.</description>
     <maintainer email="team-spatzenhirn@uni-ulm.de">Team Spatzenhirn</maintainer>
     <maintainer email="jonas@jonasotto.com">Jonas Otto</maintainer>
+    <maintainer email="dominik.authaler@uni-ulm.de">Dominik Authaler</maintainer>
     <license>MIT</license>
 
     <buildtool_depend>ament_cmake</buildtool_depend>
