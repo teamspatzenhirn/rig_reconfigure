@@ -506,8 +506,9 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
 
         if (std::holds_alternative<double>(value)) {
-            if (ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
-                                  nullptr, "%.6g")) {
+            ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
+                              nullptr, "%.6g");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
@@ -517,7 +518,8 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
-            if (ImGui::DragInt(identifier.c_str(), &std::get<int>(value))) {
+            ImGui::DragInt(identifier.c_str(), &std::get<int>(value));
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
