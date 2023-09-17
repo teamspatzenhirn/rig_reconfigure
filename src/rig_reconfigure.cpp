@@ -11,6 +11,7 @@
 #include <ament_index_cpp/get_package_prefix.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <vector>
 
@@ -98,6 +99,16 @@ int main(int argc, char *argv[]) {
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    // place the imgui.ini config file within the users home directory (instead of current working directory)
+    const std::filesystem::path config_file_dir(std::string(std::getenv("HOME")) + "/.config/rig_reconfigure");
+
+    if (!std::filesystem::exists(config_file_dir)) {
+        std::filesystem::create_directory(config_file_dir);
+    }
+
+    const std::string config_file_path = config_file_dir.string() + "/imgui.ini";
+    ImGui::GetIO().IniFilename = config_file_path.c_str();
 
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
