@@ -110,6 +110,8 @@ int main(int argc, char *argv[]) {
     const std::string config_file_path = config_file_dir.string() + "/imgui.ini";
     ImGui::GetIO().IniFilename = config_file_path.c_str();
 
+    bool configFileExisting = std::filesystem::exists(config_file_path);
+
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     // Setup Dear ImGui style
@@ -139,7 +141,7 @@ int main(int argc, char *argv[]) {
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
 
-    bool shouldResetLayout = true;
+    bool shouldResetLayout = false;
     bool showInfo = false;
 
     // Main loop
@@ -303,8 +305,9 @@ int main(int argc, char *argv[]) {
 
         renderInfoWindow(&showInfo, resourcePath);
 
-        if (ImGui::DockBuilderGetNode(dockspace_id) == NULL || shouldResetLayout) {
+        if (ImGui::DockBuilderGetNode(dockspace_id) == NULL || shouldResetLayout || !configFileExisting) {
             shouldResetLayout = false;
+            configFileExisting = true;
             ImGui::DockBuilderRemoveNode(dockspace_id);                            // Clear out existing layout
             ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace); // Add empty node
             ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
