@@ -11,6 +11,7 @@
 #include <ament_index_cpp/get_package_prefix.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <vector>
 
@@ -99,6 +100,18 @@ int main(int argc, char *argv[]) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
+    // place the imgui.ini config file within the users home directory (instead of current working directory)
+    const std::filesystem::path config_file_dir(std::string(std::getenv("HOME")) + "/.config/rig_reconfigure");
+
+    if (!std::filesystem::exists(config_file_dir)) {
+        std::filesystem::create_directory(config_file_dir);
+    }
+
+    const std::string config_file_path = config_file_dir.string() + "/imgui.ini";
+    ImGui::GetIO().IniFilename = config_file_path.c_str();
+
+    bool configFileExisting = std::filesystem::exists(config_file_path);
+
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     // Setup Dear ImGui style
@@ -128,7 +141,7 @@ int main(int argc, char *argv[]) {
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
 
-    bool shouldResetLayout = true;
+    bool shouldResetLayout = false;
     bool showInfo = false;
 
     // Main loop
@@ -292,8 +305,9 @@ int main(int argc, char *argv[]) {
 
         renderInfoWindow(&showInfo, resourcePath);
 
-        if (ImGui::DockBuilderGetNode(dockspace_id) == NULL || shouldResetLayout) {
+        if (ImGui::DockBuilderGetNode(dockspace_id) == NULL || shouldResetLayout || !configFileExisting) {
             shouldResetLayout = false;
+            configFileExisting = true;
             ImGui::DockBuilderRemoveNode(dockspace_id);                            // Clear out existing layout
             ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace); // Add empty node
             ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
