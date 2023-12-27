@@ -40,8 +40,7 @@ add_executable(${PROJECT_NAME} src/rig_reconfigure.cpp src/service_wrapper.cpp s
 #target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=thread)
 
 target_include_directories(${PROJECT_NAME} PRIVATE include external/imspinner external/lodepng)
-target_link_libraries(${PROJECT_NAME} imgui)
-ament_target_dependencies(${PROJECT_NAME} rclcpp)
+target_link_libraries(${PROJECT_NAME} imgui rclcpp::rclcpp ament_index_cpp::ament_index_cpp)
 
 install(TARGETS ${PROJECT_NAME}
         DESTINATION lib/${PROJECT_NAME}
