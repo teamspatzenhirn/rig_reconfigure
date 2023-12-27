@@ -2,6 +2,13 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Add dependency on ament_index_cpp to fix build on rolling (`#29 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/29>`_)
+* Place imgui.ini within users home directory (`#28 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/28>`_)
+* improved input handling of numeric values (`#27 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/27>`_)
+* Contributors: Chris Lalancette, Dominik
+
 1.3.2 (2023-09-01)
 ------------------
 * add dominik as maintainer
