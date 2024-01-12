@@ -8,7 +8,6 @@
 
 
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
-#include <cstdio>
 #include <cstdlib>
 #include <vector>
 
@@ -73,9 +72,11 @@ int main(int argc, char *argv[]) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
     // Create window with graphics context
-    GLFWwindow *window = glfwCreateWindow(600, 800, "Parameter modification editor", NULL, NULL);
-    if (window == NULL)
+    GLFWwindow *window = glfwCreateWindow(600, 800, "Parameter modification editor",
+                                          nullptr, nullptr);
+    if (window == nullptr) {
         return 1;
+    }
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
@@ -304,7 +305,7 @@ int main(int argc, char *argv[]) {
 
         renderInfoWindow(&showInfo, resourcePath);
 
-        if (ImGui::DockBuilderGetNode(dockspace_id) == NULL || shouldResetLayout || !configFileExisting) {
+        if (ImGui::DockBuilderGetNode(dockspace_id) == nullptr || shouldResetLayout || !configFileExisting) {
             shouldResetLayout = false;
             configFileExisting = true;
             ImGui::DockBuilderRemoveNode(dockspace_id);                            // Clear out existing layout
@@ -365,7 +366,7 @@ int main(int argc, char *argv[]) {
 
         if (!curSelectedNode.empty()) {
             ImGui::Text("Parameters of '%s'", curSelectedNode.c_str());
-            ImGui::Dummy(ImVec2(0.0f, 5.0f));
+            ImGui::Dummy(ImVec2(0.0F, 5.0F));
 
             if (ImGui::Button("Reload parameters")) {
                 serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
@@ -386,7 +387,7 @@ int main(int argc, char *argv[]) {
                 treeNodeIDs.clear();
             }
 
-            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            ImGui::Dummy(ImVec2(0.0F, 10.0F));
 
             ImGui::AlignTextToFramePadding();
             ImGui::Text("Filter: ");
@@ -399,7 +400,7 @@ int main(int argc, char *argv[]) {
                 filter = "";
             }
 
-            ImGui::Dummy(ImVec2(0.0f, 10.0f));
+            ImGui::Dummy(ImVec2(0.0F, 10.0F));
 
             const auto maxParamLength = filteredParameterTree.getMaxParamNameLength();
             const auto textfieldWidth = std::max(MIN_INPUT_TEXT_FIELD_WIDTH, curWindowWidth - static_cast<int>(maxParamLength) - TEXT_INPUT_FIELD_PADDING);
@@ -436,7 +437,7 @@ int main(int argc, char *argv[]) {
             int display_w = 0;
             glfwGetFramebufferSize(window, &display_w, &display_h);
             glViewport(0, 0, display_w, display_h);
-            ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+            ImVec4 clear_color = ImVec4(0.45F, 0.55F, 0.60F, 1.00F);
             glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w,
                          clear_color.w);
             glClear(GL_COLOR_BUFFER_BIT);
@@ -633,7 +634,8 @@ void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourc
 #if defined(GL_UNPACK_ROW_LENGTH) && !defined(__EMSCRIPTEN__)
             glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 #endif
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData.data());
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA,static_cast<GLsizei>(width),
+                         static_cast<GLsizei>(height), 0, GL_RGBA, GL_UNSIGNED_BYTE, imageData.data());
         }
 
         imageLoaded = true;
