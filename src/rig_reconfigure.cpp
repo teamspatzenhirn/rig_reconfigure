@@ -8,21 +8,19 @@
 
 
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
-#include <ament_index_cpp/get_package_prefix.hpp>
-#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <cstdio>
 #include <cstdlib>
-#include <filesystem>
 #include <vector>
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_internal.h"
-#include "lodepng.h"
 #include "misc/cpp/imgui_stdlib.h"
 #include "parameter_tree.hpp"
 #include "service_wrapper.hpp"
+#include "utils.hpp"
+#include "lodepng.h"
 
 using namespace std::chrono_literals;
 
@@ -44,21 +42,10 @@ constexpr auto TEXT_INPUT_EDITING_END_CHARACTERS = "\n";
 
 enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
 
-static void glfw_error_callback(int error, const char *description) {
-    fprintf(stderr, "Glfw Error %d: %s\n", error, description);
-}
-
 static std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                              const std::shared_ptr<ParameterGroup> &parameterNode,
                                              std::size_t maxParamLength, std::size_t textfieldWidth,
                                              const std::string &filterString, bool expandAll = false);
-static void highlightedText(const std::string &text, std::size_t start, std::size_t end,
-                            const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
-static bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
-                                      const ImVec4 &highlightColor = FILTER_HIGHLIGHTING_COLOR);
-
-static std::filesystem::path findResourcePath(const std::string &execPath);
-static void loadWindowIcon(GLFWwindow *windowPtr, const std::filesystem::path &resourcePath);
 static void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourcePath);
 
 int main(int argc, char *argv[]) {
@@ -520,7 +507,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::AlignTextToFramePadding();
 
         if (highlightingStart.has_value() && highlightingEnd.has_value()) {
-            highlightedText(name, highlightingStart.value(), highlightingEnd.value());
+            highlightedText(name, highlightingStart.value(), highlightingEnd.value(), FILTER_HIGHLIGHTING_COLOR);
         } else {
             ImGui::Text("%s", name.c_str());
         }
@@ -596,7 +583,8 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             bool textClicked = false;
             if (subgroup->prefixSearchPatternStart.has_value() && subgroup->prefixSearchPatternEnd.has_value()) {
                 textClicked = highlightedSelectableText(subgroup->prefix, subgroup->prefixSearchPatternStart.value(),
-                                                        subgroup->prefixSearchPatternEnd.value());
+                                                        subgroup->prefixSearchPatternEnd.value(),
+                                                        FILTER_HIGHLIGHTING_COLOR);
             } else {
                 textClicked = ImGui::Selectable((subgroup->prefix).c_str());
             }
@@ -616,92 +604,6 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
     }
 
     return nodeIDs;
-}
-
-
-void highlightedText(const std::string &text, std::size_t start, std::size_t end, const ImVec4 &highlightColor) {
-    if (start == std::string::npos) {
-        ImGui::Text("%s", text.c_str());
-        return;
-    }
-
-    if (start > 0) {
-        ImGui::Text("%s", text.substr(0, start).c_str());
-        ImGui::SameLine(0, 0);
-    }
-
-    ImGui::PushStyleColor(ImGuiCol_Text, FILTER_HIGHLIGHTING_COLOR);
-    ImGui::Text("%s", text.substr(start, end - start).c_str());
-    ImGui::PopStyleColor();
-
-    if (end < text.length() - 1) {
-        ImGui::SameLine(0, 0);
-        ImGui::Text("%s", text.substr(end).c_str());
-    }
-}
-
-bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
-                               const ImVec4 &highlightColor) {
-    bool selected = false;
-
-    if (start == std::string::npos) {
-        selected |= ImGui::Selectable(text.c_str());
-        return selected;
-    }
-
-    if (start > 0) {
-        selected |= ImGui::Selectable(text.substr(0, start).c_str());
-        ImGui::SameLine(0, 0);
-    }
-
-    ImGui::PushStyleColor(ImGuiCol_Text, FILTER_HIGHLIGHTING_COLOR);
-    selected |= ImGui::Selectable(text.substr(start, end - start).c_str());
-    ImGui::PopStyleColor();
-
-    if (end < text.length() - 1) {
-        ImGui::SameLine(0, 0);
-        selected |= ImGui::Selectable(text.substr(end).c_str());
-    }
-
-    return selected;
-}
-
-std::filesystem::path findResourcePath(const std::string &execPath) {
-    auto resourcePath = std::filesystem::path(execPath).parent_path().append("resource");
-
-    try {
-        // Try getting package share dir via ament, and use that if it succeeds.
-        resourcePath = ament_index_cpp::get_package_share_directory("rig_reconfigure");
-        resourcePath.append("resource");
-    } catch (ament_index_cpp::PackageNotFoundError &e) {
-        std::cerr << "Warning: Error while looking for package share directory: " << e.what()
-                  << "\n";
-    }
-
-    return resourcePath;
-}
-
-void loadWindowIcon(GLFWwindow *windowPtr, const std::filesystem::path &resourcePath) {
-    const auto logoPath = resourcePath / "rig_reconfigure.png";
-
-    std::vector<unsigned char> iconData;
-    unsigned int width;
-    unsigned int height;
-
-    unsigned int error = lodepng::decode(iconData, width, height, logoPath.string());
-
-    if (error == 0) {
-        GLFWimage icon;
-
-        icon.width = static_cast<int>(width);
-        icon.height = static_cast<int>(height);
-        icon.pixels = iconData.data();
-
-        glfwSetWindowIcon(windowPtr, 1, &icon);
-    } else {
-        std::cerr << "Unable to load window icon (decoder error " << error << " - " << lodepng_error_text(error) << ")"
-                  << std::endl;
-    }
 }
 
 void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourcePath) {

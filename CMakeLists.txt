@@ -33,7 +33,8 @@ set(OpenGL_GL_PREFERENCE GLVND)
 find_package(OpenGL REQUIRED)
 target_link_libraries(imgui PUBLIC glfw OpenGL::GL)
 
-add_executable(${PROJECT_NAME} src/rig_reconfigure.cpp src/service_wrapper.cpp src/parameter_tree.cpp external/lodepng/lodepng.cpp)
+add_executable(${PROJECT_NAME} src/rig_reconfigure.cpp src/service_wrapper.cpp src/parameter_tree.cpp
+                               src/utils.cpp external/lodepng/lodepng.cpp)
 
 # uncomment for checking the executable with tsan
 #target_compile_options(${PROJECT_NAME} PRIVATE -g -fsanitize=thread)
