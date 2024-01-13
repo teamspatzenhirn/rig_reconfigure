@@ -9,42 +9,30 @@
 
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <cstdlib>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+#include <imgui_internal.h>
 #include <vector>
 
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
-#include "imgui_internal.h"
-#include "misc/cpp/imgui_stdlib.h"
-#include "parameter_tree.hpp"
 #include "service_wrapper.hpp"
 #include "utils.hpp"
 #include "lodepng.h"
+#include "node_window.hpp"
+#include "parameter_window.hpp"
 
 using namespace std::chrono_literals;
 
-/// Minimum width specified for text input fields.
-constexpr auto MIN_INPUT_TEXT_FIELD_WIDTH = 100;
-/// Width of the window reserved for padding (e.g. between parameter name and input field) in case the width of the
-/// input field is scaled using the window width.
-constexpr auto TEXT_INPUT_FIELD_PADDING = 100;
-/// Reduction of the text field width per nesting level (necessary to avoid input field spanning across the window
-/// borders)
-constexpr auto TEXT_FIELD_WIDTH_REDUCTION_PER_LEVEL = 22;
-constexpr auto FILTER_INPUT_TEXT_FIELD_WIDTH = 250;
-constexpr auto FILTER_HIGHLIGHTING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto NODES_AUTO_REFRESH_INTERVAL = 1s; // unit: seconds
 constexpr auto DESIRED_FRAME_RATE = 30;
 constexpr std::chrono::duration<float> DESIRED_FRAME_DURATION_MS = 1000ms / DESIRED_FRAME_RATE;
-constexpr auto TEXT_INPUT_EDITING_END_CHARACTERS = "\n";
 
-enum class StatusTextType { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
+// window names
+constexpr auto NODE_WINDOW_NAME = "Nodes";
+constexpr auto STATUS_WINDOW_NAME = "Status";
+constexpr auto PARAMETER_WINDOW_NAME = "Parameters";
 
-static std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
-                                             const std::shared_ptr<ParameterGroup> &parameterNode,
-                                             std::size_t maxParamLength, std::size_t textfieldWidth,
-                                             const std::string &filterString, bool expandAll = false);
 static void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourcePath);
 
 int main(int argc, char *argv[]) {
@@ -113,18 +101,13 @@ int main(int argc, char *argv[]) {
     int nodeNameIndex = -1;
     std::vector<std::string> nodeNames;
     std::string curSelectedNode;
-    std::string status;
-    StatusTextType statusType = StatusTextType::NONE;
+    Status status;
     ParameterTree parameterTree;         // tree with all parameters
     ParameterTree filteredParameterTree; // parameter tree after the application of the filter string
     bool reapplyFilter = true;
     std::string filter;                  // current filter string of the text input field
-    std::string currentFilterString;     // currently active filter string
     bool autoRefreshNodes = true;
     auto lastNodeRefreshTime = std::chrono::system_clock::now();
-    // unfortunately DearImGui doesn't provide any option to collapse tree nodes recursively, hence, we need to keep
-    // track of all the ID of each open tree node
-    std::set<ImGuiID> treeNodeIDs;
 
     // request available nodes on startup
     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
@@ -137,8 +120,6 @@ int main(int argc, char *argv[]) {
     // Main loop
     while (!glfwWindowShouldClose(window)) {
         // these variables are only relevant for a single iteration
-        bool expandAllParameters = false;
-
         const auto frame_start = std::chrono::high_resolution_clock::now();
 
         // check the response queue
@@ -151,8 +132,8 @@ int main(int argc, char *argv[]) {
                     nodeNames = std::dynamic_pointer_cast<NodeNameResponse>(response)->nodeNames;
 
                     if (nodeNames.empty()) {
-                        status = "Seems like there are no nodes available!";
-                        statusType = StatusTextType::NO_NODES_AVAILABLE;
+                        status.text = "Seems like there are no nodes available!";
+                        status.type = Status::Type::NO_NODES_AVAILABLE;
                     }
 
                     break;
@@ -172,11 +153,11 @@ int main(int argc, char *argv[]) {
                     auto result = std::dynamic_pointer_cast<ParameterModificationResponse>(response);
 
                     if (result->success) {
-                        status = "Parameter '" + result->parameterName + "' modified successfully!";
+                        status.text = "Parameter '" + result->parameterName + "' modified successfully!";
                     } else {
-                        status = "Parameter '" + result->parameterName + "' couldn't be modified!";
+                        status.text = "Parameter '" + result->parameterName + "' couldn't be modified!";
                     }
-                    statusType = StatusTextType::PARAMETER_CHANGED;
+                    status.type = Status::Type::PARAMETER_CHANGED;
 
                     break;
                 }
@@ -184,8 +165,8 @@ int main(int argc, char *argv[]) {
                 case Response::Type::SERVICE_TIMEOUT: {
                     auto result = std::dynamic_pointer_cast<ServiceTimeout>(response);
 
-                    status = "Node '" + result->nodeName + "' didn't respond to service call. Maybe the node has died?";
-                    statusType = StatusTextType::SERVICE_TIMEOUT;
+                    status.text = "Node '" + result->nodeName + "' didn't respond to service call. Maybe the node has died?";
+                    status.type = Status::Type::SERVICE_TIMEOUT;
 
                     break;
                 }
@@ -206,8 +187,6 @@ int main(int argc, char *argv[]) {
             // selected node has changed
             selectedIndex = nodeNameIndex;
 
-            treeNodeIDs.clear();
-
             auto selectedNodeName = nodeNames.at(selectedIndex);
 
             if (selectedNodeName != curSelectedNode) {
@@ -219,21 +198,20 @@ int main(int argc, char *argv[]) {
             }
 
             // clear warning about died node if one switches to another one
-            if (statusType == StatusTextType::SERVICE_TIMEOUT) {
-                status.clear();
-                statusType = StatusTextType::NONE;
+            if (status.type == Status::Type::SERVICE_TIMEOUT) {
+                status.text.clear();
+                status.type = Status::Type::NONE;
             }
         } else if (!curSelectedNode.empty() &&
                    (nodeNames.empty() || nameAtIndexChanged || selectedIndex >= nodeNames.size())) {
-            status = "Warning: Node '" + curSelectedNode + "' seems to have died!";
-            statusType = StatusTextType::SERVICE_TIMEOUT;
+            status.text = "Warning: Node '" + curSelectedNode + "' seems to have died!";
+            status.type = Status::Type::SERVICE_TIMEOUT;
         }
 
-        if (reapplyFilter == true || currentFilterString != filter) {
+        if (reapplyFilter == true || filteredParameterTree.getAppliedFilter() != filter) {
             reapplyFilter = false;
-            currentFilterString = filter;
 
-            filteredParameterTree = parameterTree.filter(currentFilterString);
+            filteredParameterTree = parameterTree.filter(filter);
         }
 
         // auto refresh the node list periodically
@@ -320,111 +298,22 @@ int main(int argc, char *argv[]) {
             ImGuiID right = 0;
             ImGui::DockBuilderSplitNode(top, ImGuiDir_Left, 0.3, &left, &right);
 
-            ImGui::DockBuilderDockWindow("Nodes", left);
-            ImGui::DockBuilderDockWindow("Parameters", right);
-            ImGui::DockBuilderDockWindow("Status", bottom);
+            ImGui::DockBuilderDockWindow(NODE_WINDOW_NAME, left);
+            ImGui::DockBuilderDockWindow(PARAMETER_WINDOW_NAME, right);
+            ImGui::DockBuilderDockWindow(STATUS_WINDOW_NAME, bottom);
             ImGui::DockBuilderFinish(dockspace_id);
         }
 
-        ImGui::Begin("Nodes");
+        renderNodeWindow(NODE_WINDOW_NAME, nodeNames, serviceWrapper, nodeNameIndex, status);
 
-        if (nodeNames.empty()) {
-            ImGui::Text("No nodes available!");
+        renderParameterWindow(PARAMETER_WINDOW_NAME, curSelectedNode, serviceWrapper, filteredParameterTree,
+                              filter, status);
+
+        ImGui::Begin(STATUS_WINDOW_NAME);
+        if (status.type == Status::Type::SERVICE_TIMEOUT) {
+            ImGui::TextColored(STATUS_WARNING_COLOR, "%s", status.text.c_str());
         } else {
-            ImGui::Text("Available nodes:");
-
-            if (ImGui::BeginListBox("##Nodes", ImVec2(-1, 500))) {
-                for (auto i = 0U; i < nodeNames.size(); ++i) {
-                    const bool isSelected = (nodeNameIndex == i);
-                    if (ImGui::Selectable(nodeNames[i].c_str(), isSelected)) {
-                        nodeNameIndex = i;
-                    }
-                }
-                ImGui::EndListBox();
-            }
-
-            if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
-                status.clear();
-                statusType = StatusTextType::NONE;
-            }
-        }
-
-        if (ImGui::Button("Refresh")) {
-            serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_NAMES));
-
-            if (statusType == StatusTextType::SERVICE_TIMEOUT) {
-                status.clear();
-                statusType = StatusTextType::NONE;
-            }
-        }
-
-        ImGui::End();
-
-        ImGui::Begin("Parameters");
-
-        const auto curWindowWidth = static_cast<int>(ImGui::GetWindowSize().x);
-
-        if (!curSelectedNode.empty()) {
-            ImGui::Text("Parameters of '%s'", curSelectedNode.c_str());
-            ImGui::Dummy(ImVec2(0.0F, 5.0F));
-
-            if (ImGui::Button("Reload parameters")) {
-                serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
-            }
-
-            ImGui::SameLine();
-
-            if (ImGui::Button("Expand all")) {
-                expandAllParameters = true;
-            }
-
-            ImGui::SameLine();
-
-            if (ImGui::Button("Collapse all")) {
-                for (const auto id : treeNodeIDs) {
-                    ImGui::TreeNodeSetOpen(id, false);
-                }
-                treeNodeIDs.clear();
-            }
-
-            ImGui::Dummy(ImVec2(0.0F, 10.0F));
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Filter: ");
-            ImGui::SameLine();
-            ImGui::PushItemWidth(FILTER_INPUT_TEXT_FIELD_WIDTH);
-            ImGui::InputText("##Filter", &filter, ImGuiInputTextFlags_CharsNoBlank);
-            ImGui::PopItemWidth();
-            ImGui::SameLine();
-            if (ImGui::Button("Clear")) {
-                filter = "";
-            }
-
-            ImGui::Dummy(ImVec2(0.0F, 10.0F));
-
-            const auto maxParamLength = filteredParameterTree.getMaxParamNameLength();
-            const auto textfieldWidth = std::max(MIN_INPUT_TEXT_FIELD_WIDTH, curWindowWidth - static_cast<int>(maxParamLength) - TEXT_INPUT_FIELD_PADDING);
-
-            const auto ids = visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
-                                                 maxParamLength, textfieldWidth, currentFilterString,
-                                                 expandAllParameters);
-            treeNodeIDs.insert(ids.begin(), ids.end());
-
-            if (statusType == StatusTextType::NO_NODES_AVAILABLE) {
-                status.clear();
-                statusType = StatusTextType::NONE;
-            }
-        } else {
-            ImGui::Text("Please select a node first!");
-        }
-
-        ImGui::End();
-
-        ImGui::Begin("Status");
-        if (statusType == StatusTextType::SERVICE_TIMEOUT) {
-            ImGui::TextColored(STATUS_WARNING_COLOR, "%s", status.c_str());
-        } else {
-            ImGui::Text("%s", status.c_str());
+            ImGui::Text("%s", status.text.c_str());
         }
         ImGui::End();
 
@@ -469,142 +358,6 @@ int main(int argc, char *argv[]) {
     serviceWrapper.terminate();
 
     rclcpp::shutdown();
-}
-
-std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
-                                      const std::shared_ptr<ParameterGroup> &parameterNode,
-                                      const std::size_t maxParamLength,
-                                      const std::size_t textfieldWidth,
-                                      const std::string &filterString,
-                                      const bool expandAll) {
-    // required to store which of the text input fields is 'dirty' (has changes which have not yet been propagated to
-    // the ROS service (because editing has not yet been finished))
-    // --> since ImGui only allows a single active input field storing the path of the corresponding parameter is enough
-    static std::string dirtyTextInput;
-
-    std::set<ImGuiID> nodeIDs;
-    auto *window = ImGui::GetCurrentWindow();
-
-    if (parameterNode == nullptr || (parameterNode->parameters.empty() && parameterNode->subgroups.empty())) {
-        if (!filterString.empty()) {
-            ImGui::Text("This node doesn't seem to have any parameters\nmatching the filter!");
-        } else {
-            ImGui::Text("This node doesn't seem to have any parameters!");
-        }
-
-        return {};
-    }
-
-    for (auto &[name, fullPath, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
-        std::string identifier = "##" + name;
-
-        // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired
-        // :D)
-        std::string padding;
-        if (name.length() < maxParamLength) {
-            padding = std::string(maxParamLength - name.length(), ' ');
-        }
-
-        ImGui::AlignTextToFramePadding();
-
-        if (highlightingStart.has_value() && highlightingEnd.has_value()) {
-            highlightedText(name, highlightingStart.value(), highlightingEnd.value(), FILTER_HIGHLIGHTING_COLOR);
-        } else {
-            ImGui::Text("%s", name.c_str());
-        }
-
-        ImGui::SameLine(0, 0);
-        ImGui::Text("%s", padding.c_str());
-
-        ImGui::SameLine();
-        ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
-
-        if (std::holds_alternative<double>(value)) {
-            ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
-                              nullptr, "%.6g");
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-            }
-        } else if (std::holds_alternative<bool>(value)) {
-            if (ImGui::Checkbox(identifier.c_str(), &std::get<bool>(value))) {
-                serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-            }
-        } else if (std::holds_alternative<int>(value)) {
-            ImGui::DragInt(identifier.c_str(), &std::get<int>(value));
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-            }
-        } else if (std::holds_alternative<std::string>(value)) {
-            // Set to true when enter is pressed
-            bool flush = false;
-
-            // Note: ImGui provides an option to provide only callbacks on enter, but we additionally need the
-            //       information whether the text field is 'dirty', hence, we need to check for 'enter'
-            //       by ourselves
-            if (ImGui::InputText(identifier.c_str(), &std::get<std::string>(value))) {
-                dirtyTextInput = fullPath;
-
-                auto &str = std::get<std::string>(value);
-
-                // check if last character indicates the end of the editing
-                if (str.ends_with(TEXT_INPUT_EDITING_END_CHARACTERS)) {
-                    flush = true;
-                    str.pop_back();
-                }
-            }
-
-            // Second condition: InputText focus lost
-            if (flush || (!ImGui::IsItemActive() && dirtyTextInput == fullPath)) {
-                dirtyTextInput.clear();
-                serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-            }
-        }
-        ImGui::PopItemWidth();
-    }
-
-    if (!parameterNode->subgroups.empty()) {
-        for (const auto &subgroup : parameterNode->subgroups) {
-            if (expandAll) {
-                ImGui::SetNextItemOpen(true);
-            }
-
-            const auto label = "##" + subgroup->prefix;
-
-            // this is hacky, we need the ID of the TreeNode in order to access the memory for collapsing it
-            const auto nodeID = window->GetID(label.c_str());
-            nodeIDs.insert(nodeID);
-
-            bool open = ImGui::TreeNode(label.c_str());
-
-            ImGui::SameLine();
-            bool textClicked = false;
-            if (subgroup->prefixSearchPatternStart.has_value() && subgroup->prefixSearchPatternEnd.has_value()) {
-                textClicked = highlightedSelectableText(subgroup->prefix, subgroup->prefixSearchPatternStart.value(),
-                                                        subgroup->prefixSearchPatternEnd.value(),
-                                                        FILTER_HIGHLIGHTING_COLOR);
-            } else {
-                textClicked = ImGui::Selectable((subgroup->prefix).c_str());
-            }
-
-            if (textClicked) {
-                ImGui::TreeNodeSetOpen(nodeID, !open);
-            }
-
-            if (open) {
-                const auto newWidth = textfieldWidth - TEXT_FIELD_WIDTH_REDUCTION_PER_LEVEL;
-                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, newWidth,
-                                                  filterString, expandAll);
-                nodeIDs.insert(subIDs.begin(), subIDs.end());
-                ImGui::TreePop();
-            }
-        }
-    }
-
-    return nodeIDs;
 }
 
 void renderInfoWindow(bool *showInfoWindow, const std::filesystem::path &resourcePath) {

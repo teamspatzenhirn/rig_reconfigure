@@ -15,6 +15,13 @@
 
 #include <GLFW/glfw3.h> // will drag system OpenGL headers
 
+struct Status {
+    enum class Type { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
+
+    Type type = Type::NONE;
+    std::string text;
+};
+
 /**
  * Utility imgui function for partly highlighted text.
  * @param text           String which should be displayed.
