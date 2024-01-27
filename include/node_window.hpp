@@ -17,10 +17,10 @@
  * @param[in] windowName          Window name.
  * @param[in] nodeNames           List with the available nodes.
  * @param[in, out] serviceWrapper Service wrapper for issuing ROS requests.
- * @param[in, out] nodeNameIndex  Index of the currently selected node.
+ * @param[in, out] selectedNode   Full name of the currently selected node.
  * @param[in, out] status         Status.
  */
 void renderNodeWindow(const char *windowName, const std::vector<std::string> &nodeNames,
-                      ServiceWrapper &serviceWrapper, int &nodeNameIndex, Status &status);
+                      ServiceWrapper &serviceWrapper, std::string &selectedNode, Status &status);
 
 #endif //RIG_RECONFIGURE_NODE_WINDOW_HPP

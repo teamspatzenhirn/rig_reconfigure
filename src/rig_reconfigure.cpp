@@ -97,10 +97,9 @@ int main(int argc, char *argv[]) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
 
-    int selectedIndex = -1;
-    int nodeNameIndex = -1;
     std::vector<std::string> nodeNames;
-    std::string curSelectedNode;
+    std::string selectedNode;      // name of the node which has been selected in the current iteration
+    std::string curDisplayedNode;  // name of the node for which parameters are currently displayed
     Status status;
     ParameterTree parameterTree;         // tree with all parameters
     ParameterTree filteredParameterTree; // parameter tree after the application of the filter string
@@ -174,38 +173,25 @@ int main(int argc, char *argv[]) {
         }
 
         // handle changes of the selected node + died nodes / newly added nodes during the refresh step
-        const auto nodeNameIterator = std::find(nodeNames.begin(), nodeNames.end(), curSelectedNode);
+        const auto nodeNameIterator = std::find(nodeNames.begin(), nodeNames.end(), curDisplayedNode);
         bool nodeStillAvailable = (nodeNameIterator != nodeNames.end());
-        bool nameAtIndexChanged = (selectedIndex < nodeNames.size() && curSelectedNode != nodeNames.at(selectedIndex));
 
-        if (nodeNameIndex == selectedIndex && nameAtIndexChanged && nodeStillAvailable) {
-            // node list has changed, e.g. because new nodes have been started
-            // -> selected node does still exist, hence, we simply need to update the selected index
-            selectedIndex = std::distance(nodeNames.begin(), nodeNameIterator);
-            nodeNameIndex = selectedIndex;
-        } else if (nodeNameIndex != selectedIndex) {
+        if (!curDisplayedNode.empty() && !nodeStillAvailable) {
+            status.text = "Warning: Node '" + curDisplayedNode + "' seems to have died!";
+            status.type = Status::Type::SERVICE_TIMEOUT;
+        } else if (!selectedNode.empty() && selectedNode != curDisplayedNode) {
             // selected node has changed
-            selectedIndex = nodeNameIndex;
+            curDisplayedNode = selectedNode;
 
-            auto selectedNodeName = nodeNames.at(selectedIndex);
-
-            if (selectedNodeName != curSelectedNode) {
-                curSelectedNode = selectedNodeName;
-
-                // query parameters of the node
-                serviceWrapper.setNodeOfInterest(curSelectedNode);
-                serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
-            }
+            // query parameters of the node
+            serviceWrapper.setNodeOfInterest(curDisplayedNode);
+            serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
 
             // clear warning about died node if one switches to another one
             if (status.type == Status::Type::SERVICE_TIMEOUT) {
                 status.text.clear();
                 status.type = Status::Type::NONE;
             }
-        } else if (!curSelectedNode.empty() &&
-                   (nodeNames.empty() || nameAtIndexChanged || selectedIndex >= nodeNames.size())) {
-            status.text = "Warning: Node '" + curSelectedNode + "' seems to have died!";
-            status.type = Status::Type::SERVICE_TIMEOUT;
         }
 
         if (reapplyFilter == true || filteredParameterTree.getAppliedFilter() != filter) {
@@ -304,9 +290,11 @@ int main(int argc, char *argv[]) {
             ImGui::DockBuilderFinish(dockspace_id);
         }
 
-        renderNodeWindow(NODE_WINDOW_NAME, nodeNames, serviceWrapper, nodeNameIndex, status);
+        renderNodeWindow(NODE_WINDOW_NAME, nodeNames, serviceWrapper, selectedNode, status);
 
-        renderParameterWindow(PARAMETER_WINDOW_NAME, curSelectedNode, serviceWrapper, filteredParameterTree,
+        // Note: updating the parameter window at least one iteration late is no problem since the parameters
+        //       have to be queried anyway before being able to visualize anything meaningful
+        renderParameterWindow(PARAMETER_WINDOW_NAME, curDisplayedNode, serviceWrapper, filteredParameterTree,
                               filter, status);
 
         ImGui::Begin(STATUS_WINDOW_NAME);
