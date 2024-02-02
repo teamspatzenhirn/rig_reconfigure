@@ -288,3 +288,7 @@ void ServiceWrapper::parameterModificationResponseReceived(const rclcpp::Client<
 
     responseQueue.push(response);
 }
+
+void ServiceWrapper::setIgnoreDefaultParameters(bool ignoreDefaultParameters_) {
+    this->ignoreDefaultParameters=ignoreDefaultParameters_;
+}
