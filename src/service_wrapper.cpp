@@ -8,6 +8,7 @@
 
 #include "service_wrapper.hpp"
 #include <chrono>
+#include <regex>
 
 using namespace std::chrono_literals;
 
@@ -230,9 +231,11 @@ void ServiceWrapper::nodeParametersReceived(const rclcpp::Client<rcl_interfaces:
     auto valueRequest = std::make_shared<ParameterValueRequest>(future.get()->result.names);
 
     if (ignoreDefaultParameters) {
-        // ignore node used for querying the services
+        // Hide default parameters "use_sim_time", "qos_overrides./*", "start_type_description_service"
+        static std::regex HIDDEN_PARAMETER_REGEX = std::regex(
+                "^use_sim_time$|^qos_overrides\\.\\/.*$|^start_type_description_service$");
         std::erase_if(valueRequest->parameterNames, [](const std::string &s) {
-            return (s.starts_with("qos_overrides./") || s.starts_with("use_sim_time"));
+            return std::regex_match(s, HIDDEN_PARAMETER_REGEX);
         });
     }
 
@@ -284,4 +287,8 @@ void ServiceWrapper::parameterModificationResponseReceived(const rclcpp::Client<
     timeoutContainer->handled = true;
 
     responseQueue.push(response);
+}
+
+void ServiceWrapper::setIgnoreDefaultParameters(bool ignoreDefaultParameters_) {
+    this->ignoreDefaultParameters = ignoreDefaultParameters_;
 }

@@ -53,6 +53,8 @@ class ServiceWrapper {
 
     void checkForTimeouts();
 
+    void setIgnoreDefaultParameters(bool ignoreDefaultParameters);
+
   private:
     void threadFunc();
     void handleRequest(const RequestPtr &request);
