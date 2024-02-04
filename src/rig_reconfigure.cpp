@@ -252,7 +252,7 @@ int main(int argc, char *argv[]) {
             if (ImGui::BeginMenu("Parameters")) {
                 bool propertyChanged = ImGui::MenuItem("Hide default parameters", nullptr, &ignoreDefaultParameters);
                 serviceWrapper.setIgnoreDefaultParameters(ignoreDefaultParameters);
-                if (propertyChanged && !curSelectedNode.empty()) {
+                if (propertyChanged && !curDisplayedNode.empty()) {
                     // Reload parameters if menu item was toggled
                     serviceWrapper.pushRequest(std::make_shared<Request>(Request::Type::QUERY_NODE_PARAMETERS));
                 }
