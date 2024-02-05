@@ -165,7 +165,7 @@ bool NodeTree::SortComparator::operator()(const std::shared_ptr<TreeNode> &node1
 void visualizeNodeTree(const std::shared_ptr<const TreeNode>& root, std::string &selectedNode) {
     if (root->children.empty()) {
         // leaf node
-        if (ImGui::Selectable(root->name.c_str())) {
+        if (ImGui::Selectable(root->name.c_str(), selectedNode == root->fullName)) {
             selectedNode = root->fullName;
         }
     } else {
