@@ -132,8 +132,8 @@ void NodeTree::addNode(const std::shared_ptr<TreeNode> &curNode, const std::stri
     } else {
         // found an existing node, check whether we have to subdivide it
         const auto idx = name.find('/');
-        if (nextNode->children.empty() && idx != std::string::npos) {
-
+        if (nextNode->children.empty() && idx != std::string::npos && nextNode->name.find('/') != std::string::npos) {
+            // nextNode is leaf with prefix (namespace with single child is collapsed)
             auto nextNodePrefix = nextNode->name.substr(0, idx);
             auto nextNodeRemainingName = nextNode->name.substr(idx + 1);
 
@@ -141,6 +141,11 @@ void NodeTree::addNode(const std::shared_ptr<TreeNode> &curNode, const std::stri
 
             nextNode->name = nextNodePrefix;
             nextNode->fullName.clear();
+        } else if (nextNode->children.empty() && idx != std::string::npos && nextNode->name == prefix) {
+            // nextNode is a leaf node with same name as next namespace token
+            // create sibling to nextNode with same name, and add node below that
+            nextNode = std::make_shared<TreeNode>(TreeNode{prefix, fullName});
+            curNode->children.emplace_back(nextNode);
         }
 
         addNode(nextNode, remainingName, fullName);
@@ -165,9 +170,12 @@ bool NodeTree::SortComparator::operator()(const std::shared_ptr<TreeNode> &node1
 void visualizeNodeTree(const std::shared_ptr<const TreeNode>& root, std::string &selectedNode) {
     if (root->children.empty()) {
         // leaf node
+        // push "leaf" to id stack to prevent ID collision between node and namespace with same name
+        ImGui::PushID("leaf");
         if (ImGui::Selectable(root->name.c_str())) {
             selectedNode = root->fullName;
         }
+        ImGui::PopID();
     } else {
         // inner node
         if (!root->name.empty()) {
