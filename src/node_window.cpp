@@ -110,7 +110,7 @@ void NodeTree::addNode(const std::shared_ptr<TreeNode> &curNode, const std::stri
 
     auto prefixEnd = name.find('/');
     if (prefixEnd == std::string::npos) {
-        curNode->children.emplace_back(std::make_shared<TreeNode>(name, fullName));
+        curNode->children.emplace_back(std::make_shared<TreeNode>(TreeNode{name, fullName}));
         return;
     }
 
@@ -127,7 +127,7 @@ void NodeTree::addNode(const std::shared_ptr<TreeNode> &curNode, const std::stri
     }
 
     if (nextNode == nullptr) {
-        nextNode = std::make_shared<TreeNode>(name, fullName);
+        nextNode = std::make_shared<TreeNode>(TreeNode{name, fullName});
         curNode->children.emplace_back(nextNode);
     } else {
         // found an existing node, check whether we have to subdivide it
@@ -137,7 +137,7 @@ void NodeTree::addNode(const std::shared_ptr<TreeNode> &curNode, const std::stri
             auto nextNodePrefix = nextNode->name.substr(0, idx);
             auto nextNodeRemainingName = nextNode->name.substr(idx + 1);
 
-            nextNode->children.emplace_back(std::make_shared<TreeNode>(nextNodeRemainingName, nextNode->fullName));
+            nextNode->children.emplace_back(std::make_shared<TreeNode>(TreeNode{nextNodeRemainingName, nextNode->fullName}));
 
             nextNode->name = nextNodePrefix;
             nextNode->fullName.clear();
