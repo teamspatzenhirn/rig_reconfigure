@@ -172,7 +172,8 @@ void visualizeNodeTree(const std::shared_ptr<const TreeNode>& root, std::string 
         // leaf node
         // push "leaf" to id stack to prevent ID collision between node and namespace with same name
         ImGui::PushID("leaf");
-        if (ImGui::Selectable(root->name.c_str())) {
+        if (ImGui::Selectable(root->name.c_str(), selectedNode == root->fullName)) {
+
             selectedNode = root->fullName;
         }
         ImGui::PopID();

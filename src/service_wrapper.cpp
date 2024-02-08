@@ -126,6 +126,16 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
                     continue;
                 }
 
+                 {
+                    auto tmpclient = node->create_client<rcl_interfaces::srv::ListParameters>(serviceName);
+                    if (!tmpclient->service_is_ready()) {
+                        // Service is known, but not ready.
+                        // This happens e.g. if this is the currently selected node,
+                        // so we still have clients for the service, but the node has died.
+                        continue;
+                    }
+                }
+
                 nodeNames.push_back(extractedNodeName);
             }
 
