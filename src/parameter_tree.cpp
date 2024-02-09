@@ -25,6 +25,7 @@ void ParameterTree::add(const ROSParameter &parameter) {
 }
 void ParameterTree::clear() {
     root = std::make_shared<ParameterGroup>();
+    appliedFilter.clear();
 }
 
 void ParameterTree::add(const std::shared_ptr<ParameterGroup> &curNode, const TreeElement &parameter) {
@@ -63,10 +64,15 @@ std::size_t ParameterTree::getMaxParamNameLength() const {
     return maxParamNameLength;
 }
 
+std::string ParameterTree::getAppliedFilter() const {
+    return appliedFilter;
+}
+
 ParameterTree ParameterTree::filter(const std::string &filterString) const {
     ParameterTree filteredTree;
 
     filteredTree.maxParamNameLength = maxParamNameLength;
+    filteredTree.appliedFilter = filterString;
 
     // first pass: filter all parameters
     filter(filteredTree.getRoot(), root, filterString);

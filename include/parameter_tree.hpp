@@ -62,8 +62,9 @@ class ParameterTree {
 
     void add(const ROSParameter &parameter);
     void clear();
-    std::shared_ptr<ParameterGroup> getRoot();
+    [[nodiscard]] std::shared_ptr<ParameterGroup> getRoot();
     [[nodiscard]] std::size_t getMaxParamNameLength() const;
+    [[nodiscard]] std::string getAppliedFilter() const;
 
     [[nodiscard]] ParameterTree filter(const std::string &filterString) const;
 
@@ -81,6 +82,8 @@ class ParameterTree {
 
     // bookkeeping for a nicer visualization
     std::size_t maxParamNameLength = 0;
+
+    std::string appliedFilter;
 };
 
 #endif // RIG_RECONFIGURE_PARAMETER_TREE_HPP

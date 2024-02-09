@@ -3,7 +3,9 @@
  * @author Dominik Authaler
  * @date   22.01.2023
  *
- * Utility class wrapping all the service related calls.
+ * Utility class wrapping all the service related calls. This class has been initially inserted in order to allow
+ * using the tool together with ROS 1 by simple replacing this class. However, as of 01/2024 there are no plans to do
+ * so.
  */
 
 #include "service_wrapper.hpp"
@@ -124,11 +126,18 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
                     continue;
                 }
 
+                {
+                    auto tmpclient = node->create_client<rcl_interfaces::srv::ListParameters>(serviceName);
+                    if (!tmpclient->service_is_ready()) {
+                        // Service is known, but not ready.
+                        // This happens e.g. if this is the currently selected node,
+                        // so we still have clients for the service, but the node has died.
+                        continue;
+                    }
+                }
+
                 nodeNames.push_back(extractedNodeName);
             }
-
-            // sort nodes alphabetically
-            std::sort(nodeNames.begin(), nodeNames.end());
 
             auto response = std::make_shared<NodeNameResponse>(std::move(nodeNames));
 
