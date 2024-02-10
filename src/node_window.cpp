@@ -19,7 +19,7 @@ struct TreeNode {
     std::string name; // node name (leaf node) / namespace (other)
     std::string fullName; // full node name for easier usage
 
-    std::vector<std::shared_ptr<TreeNode>> children;
+    std::vector<std::shared_ptr<TreeNode>> children = {};
 };
 
 class NodeTree {
