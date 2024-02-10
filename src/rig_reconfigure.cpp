@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
         std::filesystem::create_directory(config_file_dir);
     }
 
-    ImGui::GetIO().IniFilename = config_file_path.c_str();
+    ImGui::GetIO().IniFilename = config_file_path.c_str(); // important for automatic saving of .ini file
     ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     // load window size if already stored from last iteration
@@ -83,12 +83,15 @@ int main(int argc, char *argv[]) {
     auto window_height = DEFAULT_WINDOW_HEIGHT;
 
     if (configFileExisting) {
+        // manual loading of the .ini file since we require the window size before creating the glfw window
         ImGui::LoadIniSettingsFromDisk(config_file_path.c_str());
         ImGuiID id = ImHashStr("Root window");
         ImGuiWindowSettings* root_window_settings = ImGui::FindWindowSettingsByID(id);
 
-        window_width = root_window_settings->Size.x;
-        window_height = root_window_settings->Size.y;
+        if (root_window_settings != nullptr) {
+            window_width = root_window_settings->Size.x;
+            window_height = root_window_settings->Size.y;
+        }
     }
 
     // Create window with graphics context
