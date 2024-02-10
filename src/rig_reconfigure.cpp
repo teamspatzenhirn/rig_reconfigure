@@ -15,9 +15,10 @@
 #include <imgui_internal.h>
 #include <vector>
 
+#include <lodepng.h>
+
 #include "service_wrapper.hpp"
 #include "utils.hpp"
-#include "lodepng.h"
 #include "node_window.hpp"
 #include "parameter_window.hpp"
 
@@ -27,6 +28,8 @@ constexpr auto STATUS_WARNING_COLOR = ImVec4(1, 0, 0, 1);
 constexpr auto NODES_AUTO_REFRESH_INTERVAL = 1s; // unit: seconds
 constexpr auto DESIRED_FRAME_RATE = 30;
 constexpr std::chrono::duration<float> DESIRED_FRAME_DURATION_MS = 1000ms / DESIRED_FRAME_RATE;
+constexpr auto DEFAULT_WINDOW_WIDTH = 600;
+constexpr auto DEFAULT_WINDOW_HEIGHT = 800;
 
 // window names
 constexpr auto NODE_WINDOW_NAME = "Nodes";
@@ -59,8 +62,37 @@ int main(int argc, char *argv[]) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+
+    // place the imgui.ini config file within the users home directory (instead of current working directory)
+    const std::filesystem::path config_file_dir(std::string(std::getenv("HOME")) + "/.config/rig_reconfigure");
+    const std::string config_file_path = config_file_dir.string() + "/imgui.ini";
+
+    if (!std::filesystem::exists(config_file_dir)) {
+        std::filesystem::create_directory(config_file_dir);
+    }
+
+    ImGui::GetIO().IniFilename = config_file_path.c_str();
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+    // load window size if already stored from last iteration
+    bool configFileExisting = std::filesystem::exists(config_file_path);
+    auto window_width = DEFAULT_WINDOW_WIDTH;
+    auto window_height = DEFAULT_WINDOW_HEIGHT;
+
+    if (configFileExisting) {
+        ImGui::LoadIniSettingsFromDisk(config_file_path.c_str());
+        ImGuiID id = ImHashStr("Root window");
+        ImGuiWindowSettings* root_window_settings = ImGui::FindWindowSettingsByID(id);
+
+        window_width = root_window_settings->Size.x;
+        window_height = root_window_settings->Size.y;
+    }
+
     // Create window with graphics context
-    GLFWwindow *window = glfwCreateWindow(600, 800, "Parameter modification editor",
+    GLFWwindow *window = glfwCreateWindow(window_width, window_height, "Parameter modification editor",
                                           nullptr, nullptr);
     if (window == nullptr) {
         return 1;
@@ -71,24 +103,6 @@ int main(int argc, char *argv[]) {
     const auto resourcePath = findResourcePath(argv[0]);
 
     loadWindowIcon(window, resourcePath);
-
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-
-    // place the imgui.ini config file within the users home directory (instead of current working directory)
-    const std::filesystem::path config_file_dir(std::string(std::getenv("HOME")) + "/.config/rig_reconfigure");
-
-    if (!std::filesystem::exists(config_file_dir)) {
-        std::filesystem::create_directory(config_file_dir);
-    }
-
-    const std::string config_file_path = config_file_dir.string() + "/imgui.ini";
-    ImGui::GetIO().IniFilename = config_file_path.c_str();
-
-    bool configFileExisting = std::filesystem::exists(config_file_path);
-
-    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
