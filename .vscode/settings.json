@@ -1,0 +1,22 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/leolander/ros2_ws/install/py_pubsub/lib/python3.10/site-packages",
+        "/home/leolander/ros2_ws/install/image_geometry/local/lib/python3.10/dist-packages",
+        "/home/leolander/ros2_ws/install/example_interfaces/local/lib/python3.10/dist-packages",
+        "/home/leolander/ros2_ws/install/cv_bridge/local/lib/python3.10/dist-packages",
+        "/home/leolander/ros2_ws/install/auv_manual_control/lib/python3.10/site-packages",
+        "/home/leolander/ros2_ws/install/auv_coppelia/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/leolander/ros2_ws/install/py_pubsub/lib/python3.10/site-packages",
+        "/home/leolander/ros2_ws/install/image_geometry/local/lib/python3.10/dist-packages",
+        "/home/leolander/ros2_ws/install/example_interfaces/local/lib/python3.10/dist-packages",
+        "/home/leolander/ros2_ws/install/cv_bridge/local/lib/python3.10/dist-packages",
+        "/home/leolander/ros2_ws/install/auv_manual_control/lib/python3.10/site-packages",
+        "/home/leolander/ros2_ws/install/auv_coppelia/lib/python3.10/site-packages",
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ]
+}
