@@ -275,6 +275,17 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
             case rcl_interfaces::msg::ParameterType::PARAMETER_STRING:
                 response->parameters.emplace_back(parameterName, valueMsg.string_value);
                 break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY:
+                {
+                    std::stringstream stream;
+                    for (const auto& number : valueMsg.double_array_value) {
+                        std::stringstream temp;
+                        stream << number << " ";
+                    }
+                    std::string result = stream.str();
+                    response->parameters.emplace_back(parameterName, result);
+                }
+                break;
             default:
                 // arrays are currently not supported
                 break;
