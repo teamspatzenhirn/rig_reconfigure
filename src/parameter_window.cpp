@@ -200,6 +200,10 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         }
+        else{
+            serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+        }
         ImGui::PopItemWidth();
     }
 

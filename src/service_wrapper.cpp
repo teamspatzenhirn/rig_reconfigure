@@ -203,19 +203,38 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             }
 
             if (std::holds_alternative<int>(updateRequest->parameter.value)) {
+                system("echo 1");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER;
                 parameterMsg.value.integer_value = std::get<int>(updateRequest->parameter.value);
             } else if (std::holds_alternative<bool>(updateRequest->parameter.value)) {
+                system("echo 2");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL;
                 parameterMsg.value.bool_value = std::get<bool>(updateRequest->parameter.value);
             } else if (std::holds_alternative<double>(updateRequest->parameter.value)) {
+                system("echo 3");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
                 parameterMsg.value.double_value = std::get<double>(updateRequest->parameter.value);
             } else if (std::holds_alternative<std::string>(updateRequest->parameter.value)) {
-                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
+                system("echo 4");
+                /*parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
                 parameterMsg.value.string_value = std::get<std::string>(updateRequest->parameter.value);
-            }
-
+                */
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
+                parameterMsg.value.double_array_value = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+            } else {
+                system("echo 5");
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
+                //parameterMsg.value.double_array_value = std::get<std::string>(updateRequest->parameter.value);
+                parameterMsg.value.double_array_value = {1.0, 1.2};
+                std::stringstream command;
+                std::string val = std::get<std::string>(updateRequest->parameter.value);
+                command << "ros2 param set " << nodeName << " [" << val << "]";
+                std::string com = command.str();
+                //system("ros2 param set VisualStable xPID \"[2.0, 2.0, 2.0, 2.0, 2.0, 2.0]\"");
+                system(com.c_str());
+                
+            }     
+            system("echo 6");       
             update->parameters.push_back(parameterMsg);
 
             const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
