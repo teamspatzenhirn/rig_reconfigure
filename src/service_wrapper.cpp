@@ -226,7 +226,9 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             } else {
                 system("echo 5");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
+                parameterMsg.value.double_array_value = std::get<std::vector<double>>(updateRequest->parameter.value);
                 //parameterMsg.value.double_array_value = std::get<std::string>(updateRequest->parameter.value);
+                /*
                 parameterMsg.value.double_array_value = {1.0, 1.2};
                 std::stringstream command;
                 std::string val = std::get<std::string>(updateRequest->parameter.value);
@@ -234,6 +236,7 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
                 std::string com = command.str();
                 //system("ros2 param set VisualStable xPID \"[2.0, 2.0, 2.0, 2.0, 2.0, 2.0]\"");
                 system(com.c_str());
+                */
                 
             }     
             system("echo 6");       
