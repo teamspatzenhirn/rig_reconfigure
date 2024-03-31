@@ -11,6 +11,7 @@
 #include "service_wrapper.hpp"
 #include <chrono>
 #include <regex>
+#include <typeinfo>
 
 using namespace std::chrono_literals;
 
@@ -220,6 +221,7 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
                 parameterMsg.value.string_value = std::get<std::string>(updateRequest->parameter.value);
                 */
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
+
                 parameterMsg.value.double_array_value = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
             } else {
                 system("echo 5");
@@ -296,13 +298,21 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
                 break;
             case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY:
                 {
-                    std::stringstream stream;
+                    double a = 12.1;
+                    std::stringstream temp;
+                    temp << "echo " << typeid(valueMsg.double_array_value).name();
+                        system(temp.str().c_str());
+                    std::stringstream stream;                    
                     for (const auto& number : valueMsg.double_array_value) {
                         std::stringstream temp;
                         stream << number << " ";
                     }
                     std::string result = stream.str();
-                    response->parameters.emplace_back(parameterName, result);
+                    //response->parameters.emplace_back(parameterName, result);
+                    double t = 28;
+                    ROSParameterVariant v = valueMsg.double_array_value;
+                    ROSParameter p (parameterName, v);
+                    response->parameters.push_back(p);
                 }
                 break;
             default:

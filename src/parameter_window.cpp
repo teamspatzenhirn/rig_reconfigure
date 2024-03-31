@@ -199,8 +199,31 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
-        }
-        else{
+        }else if (std::string(typeid(value).name()).find("vector") != std::string::npos) {
+            if (ImGui::BeginTable("table_padding_2", 6))
+            {
+                for (int cell = 0; cell < (std::get<std::vector<double>>(value)).size(); cell++)
+                {
+                    ImGui::TableNextColumn();
+                    //if (init)
+                    //    strcpy(text_bufs[cell], "edit me");
+                    //ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::PushID(cell);
+                    //ImGui::InputText("##cell", text_bufs[cell], IM_ARRAYSIZE(text_bufs[cell]));
+                    //double v = val[cell];
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    double d = (std::get<std::vector<double>>(value)).at(cell);
+                    ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &d, 1.0F, nullptr,
+                              nullptr, "%.6g");
+                    ImGui::PopID();
+                }
+                ImGui::EndTable();
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+            }
+        }else{
             serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
         }

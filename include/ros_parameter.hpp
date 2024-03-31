@@ -11,9 +11,10 @@
 
 #include <string>
 #include <variant>
+#include <vector>
 
 // TODO: add arrays
-using ROSParameterVariant = std::variant<bool, int, double, std::string>;
+using ROSParameterVariant = std::variant<bool, int, double, std::string, std::vector<double>>;
 
 struct ROSParameter {
     ROSParameter(std::string name_, ROSParameterVariant value_) :
