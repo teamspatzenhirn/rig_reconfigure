@@ -205,12 +205,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 for (int cell = 0; cell < (std::get<std::vector<double>>(value)).size(); cell++)
                 {
                     ImGui::TableNextColumn();
-                    //if (init)
-                    //    strcpy(text_bufs[cell], "edit me");
-                    //ImGui::SetNextItemWidth(-FLT_MIN);
                     ImGui::PushID(cell);
-                    //ImGui::InputText("##cell", text_bufs[cell], IM_ARRAYSIZE(text_bufs[cell]));
-                    //double v = val[cell];
                     ImGui::SetNextItemWidth(-FLT_MIN);
                     double d = (std::get<std::vector<double>>(value)).at(cell);
                     ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &d, 1.0F, nullptr,
