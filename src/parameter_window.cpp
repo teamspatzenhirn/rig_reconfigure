@@ -155,7 +155,6 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
 
         ImGui::SameLine();
         ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
-
         if (std::holds_alternative<double>(value)) {
             ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
                               nullptr, "%.6g");
@@ -199,24 +198,52 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
-        }else if (std::string(typeid(value).name()).find("vector") != std::string::npos) {
+        }else if (std::string(typeid(value).name()).find("DoubleArrayParam") != std::string::npos) {
             if (ImGui::BeginTable("table_padding_2", 6))
             {
-                for (int cell = 0; cell < (std::get<std::vector<double>>(value)).size(); cell++)
+                
+                for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
                 {
                     ImGui::TableNextColumn();
                     ImGui::PushID(cell);
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    double d = (std::get<std::vector<double>>(value)).at(cell);
-                    ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &((std::get<std::vector<double>>(value)).at(cell)), 1.0F, nullptr,
+                    //double d = (std::get<std::vector<double>>(value)).at(cell);
+                    ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &((std::get<DoubleArrayParam>(value)).arrayValue.at(cell)), 1.0F, nullptr,
                               nullptr, "%.6g");
                     ImGui::PopID();
+                    /*
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         serviceWrapper.pushRequest(
                             std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
                     }
+                    */
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        (std::get<DoubleArrayParam>(value)).isChanged = true;
+                    }
+                    if (ImGui::IsItemDeactivated()) {
+                        (std::get<DoubleArrayParam>(value)).isChanging = false;
+                    }
+                    if (ImGui::IsItemActivated()){
+                        (std::get<DoubleArrayParam>(value)).isChanging = true;
+                    }
+                    if (ImGui::IsItemDeactivated()){
+                        system("echo 1a");
+                    }
+                }
+                if ((std::get<DoubleArrayParam>(value)).isChanged && !(std::get<DoubleArrayParam>(value)).isChanging) {
+                    system("echo ---SEND---");
+                    serviceWrapper.pushRequest(
+                            std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                    (std::get<DoubleArrayParam>(value)).isChanged = false;
+                }
+                if (ImGui::IsItemDeactivated()){
+                    system("echo 2a");
                 }
                 ImGui::EndTable();
+                if (ImGui::IsItemDeactivated()){
+                    system("echo 3a");
+                }
+                
             }
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(

@@ -14,7 +14,12 @@
 #include <vector>
 
 // TODO: add arrays
-using ROSParameterVariant = std::variant<bool, int, double, std::string, std::vector<double>>;
+struct DoubleArrayParam {
+    bool isChanging;
+    bool isChanged;
+    std::vector<double> arrayValue;
+};
+using ROSParameterVariant = std::variant<bool, int, double, std::string, std::vector<double>, DoubleArrayParam>;
 
 struct ROSParameter {
     ROSParameter(std::string name_, ROSParameterVariant value_) :

@@ -226,7 +226,7 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             } else {
                 system("echo 5");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
-                parameterMsg.value.double_array_value = std::get<std::vector<double>>(updateRequest->parameter.value);
+                parameterMsg.value.double_array_value = std::get<DoubleArrayParam>(updateRequest->parameter.value).arrayValue;
                 //parameterMsg.value.double_array_value = std::get<std::string>(updateRequest->parameter.value);
                 /*
                 parameterMsg.value.double_array_value = {1.0, 1.2};
@@ -303,7 +303,11 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
                 {
                     double a = 12.1;
                     std::stringstream temp;
-                    temp << "echo " << typeid(valueMsg.double_array_value).name();
+                    temp << "echo " << typeid(valueMsg.double_array_value).name() << "\r\n";
+                        system(temp.str().c_str());
+                    temp.clear();
+                    DoubleArrayParam b;
+                    temp << "echo " << typeid(b).name() << "\r\n";
                         system(temp.str().c_str());
                     std::stringstream stream;                    
                     for (const auto& number : valueMsg.double_array_value) {
@@ -313,7 +317,11 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
                     std::string result = stream.str();
                     //response->parameters.emplace_back(parameterName, result);
                     double t = 28;
-                    ROSParameterVariant v = valueMsg.double_array_value;
+                    DoubleArrayParam arrParam;
+                    arrParam.isChanging = false;
+                    arrParam.isChanged = false;
+                    arrParam.arrayValue = valueMsg.double_array_value;
+                    ROSParameterVariant v = arrParam;
                     ROSParameter p (parameterName, v);
                     response->parameters.push_back(p);
                 }
