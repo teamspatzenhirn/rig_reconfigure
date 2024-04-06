@@ -226,23 +226,13 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     if (ImGui::IsItemActivated()){
                         (std::get<DoubleArrayParam>(value)).isChanging = true;
                     }
-                    if (ImGui::IsItemDeactivated()){
-                        system("echo 1a");
-                    }
                 }
                 if ((std::get<DoubleArrayParam>(value)).isChanged && !(std::get<DoubleArrayParam>(value)).isChanging) {
-                    system("echo ---SEND---");
                     serviceWrapper.pushRequest(
                             std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
                     (std::get<DoubleArrayParam>(value)).isChanged = false;
                 }
-                if (ImGui::IsItemDeactivated()){
-                    system("echo 2a");
-                }
                 ImGui::EndTable();
-                if (ImGui::IsItemDeactivated()){
-                    system("echo 3a");
-                }
                 
             }
             if (ImGui::IsItemDeactivatedAfterEdit()) {

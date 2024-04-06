@@ -301,22 +301,6 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
                 break;
             case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY:
                 {
-                    double a = 12.1;
-                    std::stringstream temp;
-                    temp << "echo " << typeid(valueMsg.double_array_value).name() << "\r\n";
-                        system(temp.str().c_str());
-                    temp.clear();
-                    DoubleArrayParam b;
-                    temp << "echo " << typeid(b).name() << "\r\n";
-                        system(temp.str().c_str());
-                    std::stringstream stream;                    
-                    for (const auto& number : valueMsg.double_array_value) {
-                        std::stringstream temp;
-                        stream << number << " ";
-                    }
-                    std::string result = stream.str();
-                    //response->parameters.emplace_back(parameterName, result);
-                    double t = 28;
                     DoubleArrayParam arrParam;
                     arrParam.isChanging = false;
                     arrParam.isChanged = false;
