@@ -199,7 +199,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         }else if (std::holds_alternative<DoubleArrayParam>(value)) {
-            if (ImGui::BeginTable("table_padding_2", 6))
+            if (ImGui::BeginTable("table_padding_2", (std::get<DoubleArrayParam>(value)).arrayValue.size()))
             {
                 
                 for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
@@ -207,16 +207,9 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     ImGui::TableNextColumn();
                     ImGui::PushID(cell);
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    //double d = (std::get<std::vector<double>>(value)).at(cell);
                     ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &((std::get<DoubleArrayParam>(value)).arrayValue.at(cell)), 1.0F, nullptr,
                               nullptr, "%.6g");
                     ImGui::PopID();
-                    /*
-                    if (ImGui::IsItemDeactivatedAfterEdit()) {
-                        serviceWrapper.pushRequest(
-                            std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-                    }
-                    */
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         (std::get<DoubleArrayParam>(value)).isChanged = true;
                     }
