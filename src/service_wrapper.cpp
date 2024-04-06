@@ -223,7 +223,7 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
 
                 parameterMsg.value.double_array_value = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-            } else {
+            } else if (std::holds_alternative<DoubleArrayParam>(updateRequest->parameter.value)){
                 system("echo 5");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
                 parameterMsg.value.double_array_value = std::get<DoubleArrayParam>(updateRequest->parameter.value).arrayValue;

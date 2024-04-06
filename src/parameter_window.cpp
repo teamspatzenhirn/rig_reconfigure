@@ -198,7 +198,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
-        }else if (std::string(typeid(value).name()).find("DoubleArrayParam") != std::string::npos) {
+        }else if (std::holds_alternative<DoubleArrayParam>(value)) {
             if (ImGui::BeginTable("table_padding_2", 6))
             {
                 
