@@ -217,27 +217,13 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
                 parameterMsg.value.double_value = std::get<double>(updateRequest->parameter.value);
             } else if (std::holds_alternative<std::string>(updateRequest->parameter.value)) {
                 system("echo 4");
-                /*parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
                 parameterMsg.value.string_value = std::get<std::string>(updateRequest->parameter.value);
-                */
-                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
-
-                parameterMsg.value.double_array_value = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+                
             } else if (std::holds_alternative<DoubleArrayParam>(updateRequest->parameter.value)){
                 system("echo 5");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
                 parameterMsg.value.double_array_value = std::get<DoubleArrayParam>(updateRequest->parameter.value).arrayValue;
-                //parameterMsg.value.double_array_value = std::get<std::string>(updateRequest->parameter.value);
-                /*
-                parameterMsg.value.double_array_value = {1.0, 1.2};
-                std::stringstream command;
-                std::string val = std::get<std::string>(updateRequest->parameter.value);
-                command << "ros2 param set " << nodeName << " [" << val << "]";
-                std::string com = command.str();
-                //system("ros2 param set VisualStable xPID \"[2.0, 2.0, 2.0, 2.0, 2.0, 2.0]\"");
-                system(com.c_str());
-                */
-                
             }     
             system("echo 6");       
             update->parameters.push_back(parameterMsg);
