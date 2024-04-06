@@ -250,3 +250,29 @@ Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" p
 
 The CXX compiler identification is Clang, found in "/home/leolander/ros2_ws/src/rig_reconfigure/build/CMakeFiles/3.22.1/CompilerIdCXX/CMakeCXXCompilerId.o"
 
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /usr/bin/clang++ 
+Build flags: 
+Id flags: -c 
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.o"
+
+The CXX compiler identification is Clang, found in "/home/leolander/ros2_ws/src/rig_reconfigure/build/CMakeFiles/3.22.1/CompilerIdCXX/CMakeCXXCompilerId.o"
+
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler: /usr/bin/clang++ 
+Build flags: 
+Id flags: -c 
+
+The output was:
+0
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CMakeCXXCompilerId.o"
+
+The CXX compiler identification is Clang, found in "/home/leolander/ros2_ws/src/rig_reconfigure/build/CMakeFiles/3.22.1/CompilerIdCXX/CMakeCXXCompilerId.o"
+

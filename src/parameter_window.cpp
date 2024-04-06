@@ -198,7 +198,62 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
-        }else if (std::holds_alternative<DoubleArrayParam>(value)) {
+        } else if (std::holds_alternative<BoolArrayParam>(value)) {
+            if (ImGui::BeginTable("table_padding_1", (std::get<BoolArrayParam>(value)).arrayValue.size()))
+            {
+                for (int cell = 0; cell < 2; cell++)
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(cell);
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    bool temp = (std::get<BoolArrayParam>(value).arrayValue.at(cell)); //&vector<bool> is the c++ bug
+                    if (ImGui::Checkbox(identifier.c_str(), &temp)) {
+                        std::get<BoolArrayParam>(value).arrayValue.at(cell) = temp;
+                        serviceWrapper.pushRequest(
+                                std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                    }
+                    ImGui::PopID();
+                    
+                }
+                
+                ImGui::EndTable();
+                
+            }            
+        
+        } else if (std::holds_alternative<IntArrayParam>(value)) {
+            if (ImGui::BeginTable("table_padding_2", (std::get<IntArrayParam>(value)).arrayValue.size()))
+            {
+                for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(cell);
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::DragScalar(identifier.c_str(), ImGuiDataType_S64, &((std::get<IntArrayParam>(value)).arrayValue.at(cell)), -1);
+                    ImGui::PopID();
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        (std::get<IntArrayParam>(value)).isChanged = true;
+                    }
+                    if (ImGui::IsItemDeactivated()) {
+                        (std::get<IntArrayParam>(value)).isChanging = false;
+                    }
+                    if (ImGui::IsItemActivated()){
+                        (std::get<IntArrayParam>(value)).isChanging = true;
+                    }
+                }
+                if ((std::get<IntArrayParam>(value)).isChanged && !(std::get<IntArrayParam>(value)).isChanging) {
+                    serviceWrapper.pushRequest(
+                            std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                    (std::get<IntArrayParam>(value)).isChanged = false;
+                }
+                ImGui::EndTable();
+                
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+            }
+        
+        } else if (std::holds_alternative<DoubleArrayParam>(value)) {
             if (ImGui::BeginTable("table_padding_2", (std::get<DoubleArrayParam>(value)).arrayValue.size()))
             {
                 
@@ -232,7 +287,44 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
-        }else{
+        
+        } else if (std::holds_alternative<StringArrayParam>(value)) {
+            if (ImGui::BeginTable("table_padding_2", (std::get<StringArrayParam>(value)).arrayValue.size()))
+            {
+                
+                for (int cell = 0; cell < (std::get<StringArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(cell);
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputText(identifier.c_str(), &((std::get<StringArrayParam>(value)).arrayValue.at(cell)));
+                    ImGui::PopID();
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        (std::get<StringArrayParam>(value)).isChanged = true;
+                    }
+                    if (ImGui::IsItemDeactivated()) {
+                        (std::get<StringArrayParam>(value)).isChanging = false;
+                    }
+                    if (ImGui::IsItemActivated()){
+                        (std::get<StringArrayParam>(value)).isChanging = true;
+                    }
+                }
+                if ((std::get<StringArrayParam>(value)).isChanged && !(std::get<StringArrayParam>(value)).isChanging) {
+                    serviceWrapper.pushRequest(
+                            std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                    (std::get<StringArrayParam>(value)).isChanged = false;
+                }
+                ImGui::EndTable();
+                
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                serviceWrapper.pushRequest(
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+            }
+        
+        } 
+        
+        else{
             serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
         }

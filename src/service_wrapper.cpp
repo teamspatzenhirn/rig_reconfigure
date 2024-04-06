@@ -224,8 +224,20 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
                 system("echo 5");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
                 parameterMsg.value.double_array_value = std::get<DoubleArrayParam>(updateRequest->parameter.value).arrayValue;
-            }     
-            system("echo 6");       
+            } else if (std::holds_alternative<IntArrayParam>(updateRequest->parameter.value)){
+                system("echo 6");
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY;
+                parameterMsg.value.integer_array_value = std::get<IntArrayParam>(updateRequest->parameter.value).arrayValue;
+            } else if (std::holds_alternative<BoolArrayParam>(updateRequest->parameter.value)){
+                system("echo 7");
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY;
+                parameterMsg.value.bool_array_value = std::get<BoolArrayParam>(updateRequest->parameter.value).arrayValue;
+            } else if (std::holds_alternative<StringArrayParam>(updateRequest->parameter.value)){
+                system("echo 8");
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY;
+                parameterMsg.value.string_array_value = std::get<StringArrayParam>(updateRequest->parameter.value).arrayValue;
+            }   
+            system("echo 228");       
             update->parameters.push_back(parameterMsg);
 
             const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
@@ -285,6 +297,28 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
             case rcl_interfaces::msg::ParameterType::PARAMETER_STRING:
                 response->parameters.emplace_back(parameterName, valueMsg.string_value);
                 break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY:
+                {
+                    BoolArrayParam arrParam;
+                    arrParam.isChanging = false;
+                    arrParam.isChanged = false;
+                    arrParam.arrayValue = valueMsg.bool_array_value;
+                    ROSParameterVariant v = arrParam;
+                    ROSParameter p (parameterName, v);
+                    response->parameters.push_back(p);
+                }
+                break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY:
+                {
+                    IntArrayParam arrParam;
+                    arrParam.isChanging = false;
+                    arrParam.isChanged = false;
+                    arrParam.arrayValue = valueMsg.integer_array_value;
+                    ROSParameterVariant v = arrParam;
+                    ROSParameter p (parameterName, v);
+                    response->parameters.push_back(p);
+                }
+                break;
             case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY:
                 {
                     DoubleArrayParam arrParam;
@@ -296,6 +330,19 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
                     response->parameters.push_back(p);
                 }
                 break;
+            
+            case rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY:
+                {
+                    StringArrayParam arrParam;
+                    arrParam.isChanging = false;
+                    arrParam.isChanged = false;
+                    arrParam.arrayValue = valueMsg.string_array_value;
+                    ROSParameterVariant v = arrParam;
+                    ROSParameter p (parameterName, v);
+                    response->parameters.push_back(p);
+                }
+                break;
+            
             default:
                 // arrays are currently not supported
                 break;

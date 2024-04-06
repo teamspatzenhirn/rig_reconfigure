@@ -13,13 +13,18 @@
 #include <variant>
 #include <vector>
 
-// TODO: add arrays
-struct DoubleArrayParam {
+template <typename T>
+struct ArrayParam {
     bool isChanging;
     bool isChanged;
-    std::vector<double> arrayValue;
+    std::vector<T> arrayValue;        
 };
-using ROSParameterVariant = std::variant<bool, int, double, std::string, std::vector<double>, DoubleArrayParam>;
+struct BoolArrayParam : ArrayParam<bool> {};
+struct IntArrayParam : ArrayParam<long int> {};
+struct DoubleArrayParam : ArrayParam<double> {};
+struct StringArrayParam : ArrayParam<std::string> {};
+
+using ROSParameterVariant = std::variant<bool, int, double, std::string, BoolArrayParam, IntArrayParam, DoubleArrayParam, StringArrayParam>;
 
 struct ROSParameter {
     ROSParameter(std::string name_, ROSParameterVariant value_) :
