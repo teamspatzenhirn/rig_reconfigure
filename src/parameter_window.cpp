@@ -161,7 +161,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         
         if (std::holds_alternative<double>(value)) {
             ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
-                              nullptr, "%.6g");
+                              nullptr, "%.10g");
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
@@ -298,7 +298,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     ImGui::PushID(cell);
                     ImGui::SetNextItemWidth(-FLT_MIN);
                     ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &((std::get<DoubleArrayParam>(value)).arrayValue.at(cell)), 1.0F, nullptr,
-                              nullptr, "%.6g");
+                              nullptr, "%.10g");
                     ImGui::PopID();
                     if (ImGui::IsItemDeactivatedAfterEdit()) {
                         (std::get<DoubleArrayParam>(value)).isChanged = true;
