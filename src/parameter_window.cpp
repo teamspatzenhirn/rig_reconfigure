@@ -203,11 +203,6 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<BoolArrayParam>(value)) {
-            /*
-            static ImGuiTableFlags flags = ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_NoHostExtendX;
-
-            ImVec2 outer_size = ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 3 + 3.0f);
-            */
             if (ImGui::BeginTable(identifier.c_str(), (std::get<BoolArrayParam>(value)).arrayValue.size(), flags, outer_size))
             {
                 for (int cell = 0; cell < (std::get<BoolArrayParam>(value)).arrayValue.size(); cell++)
@@ -241,10 +236,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             {
                 for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
                 {
-                    
                     ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize(std::to_string((std::get<IntArrayParam>(value)).arrayValue.at(cell)).c_str()).x + ImGui::CalcTextSize("00").x);
-                    
-                    //ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, 50.0f);
                 }
                 for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
                 {                    
