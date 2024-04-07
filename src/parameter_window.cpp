@@ -241,7 +241,10 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             {
                 for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
                 {
+                    
                     ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize(std::to_string((std::get<IntArrayParam>(value)).arrayValue.at(cell)).c_str()).x + ImGui::CalcTextSize("00").x);
+                    
+                    //ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, 50.0f);
                 }
                 for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
                 {                    
@@ -281,8 +284,13 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             }
         
         } else if (std::holds_alternative<DoubleArrayParam>(value)) {
-            if (ImGui::BeginTable("table_padding_2", (std::get<DoubleArrayParam>(value)).arrayValue.size()))
+            
+            if (ImGui::BeginTable("table_padding_2", (std::get<DoubleArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
             {
+                for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize(std::to_string((std::get<DoubleArrayParam>(value)).arrayValue.at(cell)).c_str()).x);
+                }
                 
                 for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
                 {
@@ -307,6 +315,13 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                             std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
                     (std::get<DoubleArrayParam>(value)).isChanged = false;
                 }
+                ImGui::TableNextRow();
+                for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();                    
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 2.3f + 0.5*(ImGui::GetColumnWidth() - ImGui::CalcTextSize(std::to_string(cell + 1).c_str()).x));
+                    ImGui::Text("%s",std::to_string(cell + 1).c_str());
+                };
                 ImGui::EndTable();
                 
             }
