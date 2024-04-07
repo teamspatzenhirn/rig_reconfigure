@@ -155,6 +155,8 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
 
         ImGui::SameLine();
         ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
+        static ImGuiTableFlags flags = ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_NoHostExtendX;
+        ImVec2 outer_size = ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 3 + 3.0f);
         if (std::holds_alternative<double>(value)) {
             ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
                               nullptr, "%.6g");
@@ -199,13 +201,14 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<BoolArrayParam>(value)) {
-            if (ImGui::BeginTable("table_padding_1", (std::get<BoolArrayParam>(value)).arrayValue.size()))
+            if (ImGui::BeginTable("table_padding_1", (std::get<BoolArrayParam>(value)).arrayValue.size(), flags, outer_size))
             {
-                for (int cell = 0; cell < 2; cell++)
+                for (int cell = 0; cell < (std::get<BoolArrayParam>(value)).arrayValue.size(); cell++)
                 {
                     ImGui::TableNextColumn();
                     ImGui::PushID(cell);
-                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::SetNextItemWidth(FLT_MIN);
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 0.5*(ImGui::GetColumnWidth()) - ImGui::GetStyle().ItemSpacing.x);
                     bool temp = (std::get<BoolArrayParam>(value).arrayValue.at(cell)); //&vector<bool> is the c++ bug
                     if (ImGui::Checkbox(identifier.c_str(), &temp)) {
                         std::get<BoolArrayParam>(value).arrayValue.at(cell) = temp;
@@ -215,7 +218,13 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     ImGui::PopID();
                     
                 }
-                
+                ImGui::TableNextRow();
+                for (int cell = 0; cell < (std::get<BoolArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();                    
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 2.3f + 0.5*(ImGui::GetColumnWidth() - ImGui::CalcTextSize(std::to_string(cell + 1).c_str()).x));
+                    ImGui::Text("%s",std::to_string(cell + 1).c_str());
+                };
                 ImGui::EndTable();
                 
             }            

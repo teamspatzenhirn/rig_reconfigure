@@ -204,40 +204,31 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             }
 
             if (std::holds_alternative<int>(updateRequest->parameter.value)) {
-                system("echo 1");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER;
                 parameterMsg.value.integer_value = std::get<int>(updateRequest->parameter.value);
             } else if (std::holds_alternative<bool>(updateRequest->parameter.value)) {
-                system("echo 2");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL;
                 parameterMsg.value.bool_value = std::get<bool>(updateRequest->parameter.value);
             } else if (std::holds_alternative<double>(updateRequest->parameter.value)) {
-                system("echo 3");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE;
                 parameterMsg.value.double_value = std::get<double>(updateRequest->parameter.value);
             } else if (std::holds_alternative<std::string>(updateRequest->parameter.value)) {
-                system("echo 4");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
                 parameterMsg.value.string_value = std::get<std::string>(updateRequest->parameter.value);
                 
             } else if (std::holds_alternative<DoubleArrayParam>(updateRequest->parameter.value)){
-                system("echo 5");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
                 parameterMsg.value.double_array_value = std::get<DoubleArrayParam>(updateRequest->parameter.value).arrayValue;
             } else if (std::holds_alternative<IntArrayParam>(updateRequest->parameter.value)){
-                system("echo 6");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY;
                 parameterMsg.value.integer_array_value = std::get<IntArrayParam>(updateRequest->parameter.value).arrayValue;
             } else if (std::holds_alternative<BoolArrayParam>(updateRequest->parameter.value)){
-                system("echo 7");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY;
                 parameterMsg.value.bool_array_value = std::get<BoolArrayParam>(updateRequest->parameter.value).arrayValue;
             } else if (std::holds_alternative<StringArrayParam>(updateRequest->parameter.value)){
-                system("echo 8");
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY;
                 parameterMsg.value.string_array_value = std::get<StringArrayParam>(updateRequest->parameter.value).arrayValue;
             }   
-            system("echo 228");       
             update->parameters.push_back(parameterMsg);
 
             const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
