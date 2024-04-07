@@ -331,9 +331,12 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             }
         
         } else if (std::holds_alternative<StringArrayParam>(value)) {
-            if (ImGui::BeginTable(identifier.c_str(), (std::get<StringArrayParam>(value)).arrayValue.size()))
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<StringArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
             {
-                
+                for (int cell = 0; cell < (std::get<StringArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize((std::get<StringArrayParam>(value)).arrayValue.at(cell).c_str()).x + + ImGui::CalcTextSize("AA").x);
+                }
                 for (int cell = 0; cell < (std::get<StringArrayParam>(value)).arrayValue.size(); cell++)
                 {
                     ImGui::TableNextColumn();
@@ -356,6 +359,13 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                             std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
                     (std::get<StringArrayParam>(value)).isChanged = false;
                 }
+                ImGui::TableNextRow();
+                for (int cell = 0; cell < (std::get<StringArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();                    
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 2.3f + 0.5*(ImGui::GetColumnWidth() - ImGui::CalcTextSize(std::to_string(cell + 1).c_str()).x));
+                    ImGui::Text("%s",std::to_string(cell + 1).c_str());
+                };
                 ImGui::EndTable();
                 
             }
