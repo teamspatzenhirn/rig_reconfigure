@@ -208,7 +208,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
 
             ImVec2 outer_size = ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 3 + 3.0f);
             */
-            if (ImGui::BeginTable("table_padding_1", (std::get<BoolArrayParam>(value)).arrayValue.size(), flags, outer_size))
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<BoolArrayParam>(value)).arrayValue.size(), flags, outer_size))
             {
                 for (int cell = 0; cell < (std::get<BoolArrayParam>(value)).arrayValue.size(); cell++)
                 {
@@ -237,7 +237,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             }            
         
         } else if (std::holds_alternative<IntArrayParam>(value)) {
-            if (ImGui::BeginTable("table_padding_2", (std::get<IntArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<IntArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
             {
                 for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
                 {
@@ -285,7 +285,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         
         } else if (std::holds_alternative<DoubleArrayParam>(value)) {
             
-            if (ImGui::BeginTable("table_padding_2", (std::get<DoubleArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<DoubleArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
             {
                 for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
                 {
@@ -331,7 +331,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             }
         
         } else if (std::holds_alternative<StringArrayParam>(value)) {
-            if (ImGui::BeginTable("table_padding_2", (std::get<StringArrayParam>(value)).arrayValue.size()))
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<StringArrayParam>(value)).arrayValue.size()))
             {
                 
                 for (int cell = 0; cell < (std::get<StringArrayParam>(value)).arrayValue.size(); cell++)
