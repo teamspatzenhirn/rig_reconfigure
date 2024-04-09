@@ -1,24 +1,25 @@
 {
-  "configurations": [
-    {
-      "browse": {
-        "databaseFilename": "${default}",
-        "limitSymbolsToIncludedHeaders": false
-      },
-      "includePath": [
-        "/home/leolander/ros2_ws/install/image_geometry/include/**",
-        "/home/leolander/ros2_ws/install/example_interfaces/include/**",
-        "/home/leolander/ros2_ws/install/cv_bridge/include/**",
-        "/opt/ros/humble/include/**",
-        "/usr/include/**",
-        "${workspaceFolder}/**"
-      ],
-      "name": "ROS",
-      "intelliSenseMode": "gcc-x64",
-      "compilerPath": "/usr/bin/gcc",
-      "cStandard": "gnu11",
-      "cppStandard": "c++14"
-    }
-  ],
-  "version": 4
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "${default}",
+                "limitSymbolsToIncludedHeaders": false
+            },
+            "includePath": [
+                "/home/leolander/ros2_ws/install/image_geometry/include/**",
+                "/home/leolander/ros2_ws/install/example_interfaces/include/**",
+                "/home/leolander/ros2_ws/install/cv_bridge/include/**",
+                "/opt/ros/humble/include/**",
+                "/usr/include/**",
+                "${workspaceFolder}/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "c++14",
+            "configurationProvider": "go2sh.cmake-integration"
+        }
+    ],
+    "version": 4
 }

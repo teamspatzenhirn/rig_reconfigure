@@ -218,7 +218,6 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                 std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
                     }
                     ImGui::PopID();
-                    
                 }
                 ImGui::TableNextRow();
                 for (int cell = 0; cell < (std::get<BoolArrayParam>(value)).arrayValue.size(); cell++)
@@ -228,9 +227,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     ImGui::Text("%s",std::to_string(cell + 1).c_str());
                 };
                 ImGui::EndTable();
-                
             }            
-        
         } else if (std::holds_alternative<IntArrayParam>(value)) {
             if (ImGui::BeginTable(identifier.c_str(), (std::get<IntArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
             {
@@ -268,13 +265,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     ImGui::Text("%s",std::to_string(cell + 1).c_str());
                 };
                 ImGui::EndTable();
-                
             }
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-            }
-        
         } else if (std::holds_alternative<DoubleArrayParam>(value)) {
             
             if (ImGui::BeginTable(identifier.c_str(), (std::get<DoubleArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
@@ -315,13 +306,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     ImGui::Text("%s",std::to_string(cell + 1).c_str());
                 };
                 ImGui::EndTable();
-                
             }
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-            }
-        
         } else if (std::holds_alternative<StringArrayParam>(value)) {
             if (ImGui::BeginTable(identifier.c_str(), (std::get<StringArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
             {
@@ -359,19 +344,8 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     ImGui::Text("%s",std::to_string(cell + 1).c_str());
                 };
                 ImGui::EndTable();
-                
             }
-            if (ImGui::IsItemDeactivatedAfterEdit()) {
-                serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-            }
-        
         } 
-        
-        else{
-            serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
-        }
         ImGui::PopItemWidth();
     }
 
