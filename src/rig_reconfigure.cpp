@@ -62,6 +62,18 @@ int main(int argc, char *argv[]) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
+    float highDPIscaleFactor = 1.0;
+    {
+        GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+        float xscale, yscale;
+        glfwGetMonitorContentScale(monitor, &xscale, &yscale);
+        if (xscale > 1 || yscale > 1)
+        {
+            highDPIscaleFactor = xscale;
+            glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+        }
+    }
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -109,6 +121,11 @@ int main(int argc, char *argv[]) {
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
+    ImGui::GetStyle().ScaleAllSizes(highDPIscaleFactor);
+    ImFontConfig config;
+    config.SizePixels = 13.0f * highDPIscaleFactor;
+    ImGui::GetIO().Fonts->AddFontDefault(&config);
+    //ImGui::GetIO().Fonts->AddFontFromFileTTF("ProggyClean.ttf", 13.0f * highDPIscaleFactor, NULL, NULL);
 
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(window, true);
