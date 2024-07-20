@@ -2,8 +2,8 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.5.0 (2024-07-20)
+------------------
 * create config directory if it doesnt exist (`#40 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/40>`_)
 * Persist window size via .ini file (`#36 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/36>`_)
 * Replace linear node list with tree representation (`#34 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/34>`_)
