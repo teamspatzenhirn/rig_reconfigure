@@ -2,6 +2,14 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* create config directory if it doesnt exist (`#40 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/40>`_)
+* Persist window size via .ini file (`#36 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/36>`_)
+* Replace linear node list with tree representation (`#34 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/34>`_)
+* Fixes for default parameters (`#33 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/33>`_)
+* Contributors: Dominik, Jonas Otto
+
 1.4.0 (2023-12-27)
 ------------------
 * Add dependency on ament_index_cpp to fix build on rolling (`#29 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/29>`_)
