@@ -11,6 +11,7 @@
 #include "service_wrapper.hpp"
 #include <chrono>
 #include <regex>
+#include <typeinfo>
 
 using namespace std::chrono_literals;
 
@@ -214,8 +215,20 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             } else if (std::holds_alternative<std::string>(updateRequest->parameter.value)) {
                 parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING;
                 parameterMsg.value.string_value = std::get<std::string>(updateRequest->parameter.value);
-            }
-
+                
+            } else if (std::holds_alternative<DoubleArrayParam>(updateRequest->parameter.value)){
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY;
+                parameterMsg.value.double_array_value = std::get<DoubleArrayParam>(updateRequest->parameter.value).arrayValue;
+            } else if (std::holds_alternative<IntArrayParam>(updateRequest->parameter.value)){
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY;
+                parameterMsg.value.integer_array_value = std::get<IntArrayParam>(updateRequest->parameter.value).arrayValue;
+            } else if (std::holds_alternative<BoolArrayParam>(updateRequest->parameter.value)){
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY;
+                parameterMsg.value.bool_array_value = std::get<BoolArrayParam>(updateRequest->parameter.value).arrayValue;
+            } else if (std::holds_alternative<StringArrayParam>(updateRequest->parameter.value)){
+                parameterMsg.value.type = rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY;
+                parameterMsg.value.string_array_value = std::get<StringArrayParam>(updateRequest->parameter.value).arrayValue;
+            }   
             update->parameters.push_back(parameterMsg);
 
             const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
@@ -275,6 +288,52 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
             case rcl_interfaces::msg::ParameterType::PARAMETER_STRING:
                 response->parameters.emplace_back(parameterName, valueMsg.string_value);
                 break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_BOOL_ARRAY:
+                {
+                    BoolArrayParam arrParam;
+                    arrParam.isChanging = false;
+                    arrParam.isChanged = false;
+                    arrParam.arrayValue = valueMsg.bool_array_value;
+                    ROSParameterVariant v = arrParam;
+                    ROSParameter p (parameterName, v);
+                    response->parameters.push_back(p);
+                }
+                break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER_ARRAY:
+                {
+                    IntArrayParam arrParam;
+                    arrParam.isChanging = false;
+                    arrParam.isChanged = false;
+                    arrParam.arrayValue = valueMsg.integer_array_value;
+                    ROSParameterVariant v = arrParam;
+                    ROSParameter p (parameterName, v);
+                    response->parameters.push_back(p);
+                }
+                break;
+            case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE_ARRAY:
+                {
+                    DoubleArrayParam arrParam;
+                    arrParam.isChanging = false;
+                    arrParam.isChanged = false;
+                    arrParam.arrayValue = valueMsg.double_array_value;
+                    ROSParameterVariant v = arrParam;
+                    ROSParameter p (parameterName, v);
+                    response->parameters.push_back(p);
+                }
+                break;
+            
+            case rcl_interfaces::msg::ParameterType::PARAMETER_STRING_ARRAY:
+                {
+                    StringArrayParam arrParam;
+                    arrParam.isChanging = false;
+                    arrParam.isChanged = false;
+                    arrParam.arrayValue = valueMsg.string_array_value;
+                    ROSParameterVariant v = arrParam;
+                    ROSParameter p (parameterName, v);
+                    response->parameters.push_back(p);
+                }
+                break;
+            
             default:
                 // arrays are currently not supported
                 break;
