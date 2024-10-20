@@ -23,6 +23,11 @@ ParameterTree::ParameterTree() : root(std::make_shared<ParameterGroup>()) {
 void ParameterTree::add(const ROSParameter &parameter) {
     add(root, TreeElement(parameter, parameter.name));
 }
+
+void ParameterTree::set(const ROSParameter &parameter) {
+    set(root, parameter);
+}
+
 void ParameterTree::clear() {
     root = std::make_shared<ParameterGroup>();
     appliedFilter.clear();
@@ -54,6 +59,37 @@ void ParameterTree::add(const std::shared_ptr<ParameterGroup> &curNode, const Tr
     }
 
     add(nextNode, TreeElement(remainingName, parameter.fullPath, parameter.value));
+}
+
+void ParameterTree::set(const std::shared_ptr<ParameterGroup> &curNode, const ROSParameter &parameter) {
+    auto prefixStart = parameter.name.find_first_of(SEPARATORS);
+    if (prefixStart == std::string::npos) {
+        for (auto &param : curNode->parameters) {
+            if (param.name == parameter.name) {
+                param.value = parameter.value;
+            }
+        }
+        return;
+    }
+
+    // extract first prefix and find corresponding node
+    auto prefix = parameter.name.substr(0, prefixStart);
+    auto remainingName = parameter.name.substr(prefixStart + 1);
+
+    std::shared_ptr<ParameterGroup> nextNode = nullptr;
+    for (const auto &subgroup : curNode->subgroups) {
+        if (subgroup->prefix == prefix) {
+            nextNode = subgroup;
+            break;
+        }
+    }
+
+    if (nextNode == nullptr) {
+        // unable to find node, should not occur
+        return;
+    }
+
+    set(nextNode, ROSParameter(remainingName, parameter.value));
 }
 
 std::shared_ptr<ParameterGroup> ParameterTree::getRoot() {

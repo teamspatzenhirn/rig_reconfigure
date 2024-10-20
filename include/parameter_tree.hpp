@@ -61,6 +61,7 @@ class ParameterTree {
     ParameterTree();
 
     void add(const ROSParameter &parameter);
+    void set(const ROSParameter &parameter);
     void clear();
     [[nodiscard]] std::shared_ptr<ParameterGroup> getRoot();
     [[nodiscard]] std::size_t getMaxParamNameLength() const;
@@ -73,6 +74,7 @@ class ParameterTree {
 
   private:
     void add(const std::shared_ptr<ParameterGroup> &curNode, const TreeElement &parameter);
+    void set(const std::shared_ptr<ParameterGroup> &curNode, const ROSParameter &parameter);
 
     void filter(const std::shared_ptr<ParameterGroup> &destinationNode,
                 const std::shared_ptr<ParameterGroup> &sourceNode,
