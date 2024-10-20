@@ -168,11 +168,15 @@ int main(int argc, char *argv[]) {
                 case Response::Type::MODIFICATION_RESULT: {
                     auto result = std::dynamic_pointer_cast<ParameterModificationResponse>(response);
 
-                    if (result->success) {
-                        status.text = "Parameter '" + result->parameterName + "' modified successfully!";
-                    } else {
+                    // in case of rejected updates the GUI value (at this point holding the requested value)
+                    // has be reset to the previous value
+                    if (!result->success) {
+                        parameterTree.set(ROSParameter(result->parameterName, result->value));
                         status.text = "Parameter '" + result->parameterName + "' couldn't be modified!";
+                    } else {
+                        status.text = "Parameter '" + result->parameterName + "' modified successfully!";
                     }
+
                     status.type = Status::Type::PARAMETER_CHANGED;
 
                     break;

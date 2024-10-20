@@ -39,11 +39,13 @@ struct ParameterValueResponse : public Response {
 };
 
 struct ParameterModificationResponse : public Response {
-    ParameterModificationResponse(std::string parameterName_, bool success_, std::string reason_) :
-        Response(Type::MODIFICATION_RESULT), parameterName(std::move(parameterName_)), success(success_),
-        reason(std::move(reason_)) {};
+    ParameterModificationResponse(std::string parameterName_, ROSParameterVariant value_, bool success_,
+                                  std::string reason_) :
+        Response(Type::MODIFICATION_RESULT), parameterName(std::move(parameterName_)), value(std::move(value_)),
+        success(success_), reason(std::move(reason_)) {};
 
     std::string parameterName;
+    ROSParameterVariant value;
     bool success;
     std::string reason;
 };

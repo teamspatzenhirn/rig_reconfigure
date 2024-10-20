@@ -156,23 +156,29 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::SameLine();
         ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
 
+        // Note: keeping track of the previous value is important for situations in which the modification is rejected
+        //       in order to overwrite the requested value displayed in the GUI state with the actual parameter value
+        // TODO: editing the value happens over multiple iterations, hence, the previous value is overwritten multiple
+        //       times and doesn't hold the initial value we intend to store
+        const ROSParameterVariant previousValue = value;
+
         if (std::holds_alternative<double>(value)) {
             ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
                               nullptr, "%.6g");
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value), previousValue));
             }
         } else if (std::holds_alternative<bool>(value)) {
             if (ImGui::Checkbox(identifier.c_str(), &std::get<bool>(value))) {
                 serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value), previousValue));
             }
         } else if (std::holds_alternative<int>(value)) {
             ImGui::DragInt(identifier.c_str(), &std::get<int>(value));
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value), previousValue));
             }
         } else if (std::holds_alternative<std::string>(value)) {
             // Set to true when enter is pressed
@@ -197,7 +203,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             if (flush || (!ImGui::IsItemActive() && dirtyTextInput == fullPath)) {
                 dirtyTextInput.clear();
                 serviceWrapper.pushRequest(
-                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                        std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value), previousValue));
             }
         }
         ImGui::PopItemWidth();
@@ -218,7 +224,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             bool open = ImGui::TreeNode(label.c_str());
 
             ImGui::SameLine();
-            bool textClicked = false;
+            bool textClicked;
             if (subgroup->prefixSearchPatternStart.has_value() && subgroup->prefixSearchPatternEnd.has_value()) {
                 textClicked = highlightedSelectableText(subgroup->prefix, subgroup->prefixSearchPatternStart.value(),
                                                         subgroup->prefixSearchPatternEnd.value(),

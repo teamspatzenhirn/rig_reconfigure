@@ -34,9 +34,12 @@ struct ParameterValueRequest : Request {
 };
 
 struct ParameterModificationRequest : Request {
-    ParameterModificationRequest(ROSParameter updatedParameter_) : Request(Type::MODIFY_PARAMETER_VALUE), parameter(std::move(updatedParameter_)) {};
+    ParameterModificationRequest(ROSParameter updatedParameter_, ROSParameterVariant previousValue_) : Request(
+            Type::MODIFY_PARAMETER_VALUE), parameter(std::move(updatedParameter_)),
+            previousValue(std::move(previousValue_)) {};
 
     ROSParameter parameter;
+    ROSParameterVariant previousValue;
 };
 
 #endif // RIG_RECONFIGURE_REQUESTS_HPP

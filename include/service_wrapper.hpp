@@ -31,6 +31,11 @@ struct FutureTimeoutContainer {
     bool timeoutReached = false;
 };
 
+struct OutstandingParameterModification {
+    unsigned int numRequests;
+    ROSParameterVariant previousValue;
+};
+
 /**
  * Utility class wrapping all the ROS related calls.
  */
@@ -81,6 +86,8 @@ class ServiceWrapper {
     rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedPtr getParametersClient;
     rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedPtr setParametersClient;
 
+    std::map<std::string, OutstandingParameterModification> openModificationRequests;
+
     // callbacks for the results of the futures
     void nodeParametersReceived(const rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture &future,
                                 const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
@@ -89,6 +96,7 @@ class ServiceWrapper {
                                  const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
     void parameterModificationResponseReceived(const rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture &future,
                                                const std::string &parameterName,
+                                               const ROSParameterVariant &value,
                                                const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
 };
 

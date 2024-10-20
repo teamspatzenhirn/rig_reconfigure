@@ -188,10 +188,20 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
         }
 
         case Request::Type::MODIFY_PARAMETER_VALUE: {
-            auto updateRequest = std::dynamic_pointer_cast<ParameterModificationRequest>(request);
+            const auto updateRequest = std::dynamic_pointer_cast<ParameterModificationRequest>(request);
 
-            if (updateRequest->parameter.name.empty()) {
+            const auto parameterName = updateRequest->parameter.name;
+
+            if (parameterName.empty()) {
                 break;
+            }
+
+            // keep track of previous value to set the GUI back in case the update is rejected
+            auto openRequest = openModificationRequests.find(parameterName);
+            if (openRequest == openModificationRequests.end()) {
+                openModificationRequests[parameterName] = {.numRequests = 1, .previousValue = updateRequest->previousValue};
+            } else {
+                openRequest->second.numRequests += 1;
             }
 
             auto update = std::make_shared<rcl_interfaces::srv::SetParameters::Request>();
@@ -220,14 +230,16 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
 
             const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
 
-            auto callbackLambda = [&, name=parameterMsg.name, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture future) {
-                parameterModificationResponseReceived(std::forward<decltype(future)>(future), name, timeoutPtr);
+            auto callbackLambda = [&, name=parameterMsg.name, value=updateRequest->parameter.value, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture future) {
+                parameterModificationResponseReceived(std::forward<decltype(future)>(future), name, value, timeoutPtr);
             };
 
             setParametersClient->async_send_request(update, callbackLambda);
 
-            std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
-            unfinishedROSRequests.push_back(timeoutPtr);
+            {
+                std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
+                unfinishedROSRequests.push_back(timeoutPtr);
+            }
         }
 
         case Request::Type::TERMINATE:
@@ -288,10 +300,33 @@ void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces
 
 void ServiceWrapper::parameterModificationResponseReceived(const rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture &future,
                                                            const std::string &parameterName,
+                                                           const ROSParameterVariant &parameterValue,
                                                            const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
     const auto &resultMsg = future.get();
 
-    auto response = std::make_shared<ParameterModificationResponse>(parameterName, resultMsg->results.at(0).successful, resultMsg->results.at(0).reason);
+    const bool success = resultMsg->results.at(0).successful;
+    const auto reason = resultMsg->results.at(0).reason;
+
+    // handling of previous parameter values
+    auto openRequest = openModificationRequests.find(parameterName);
+    assert (openRequest != openModificationRequests.end() && "No open modification request found!");
+
+    ROSParameterVariant value;
+    if (success) {
+        openRequest->second.previousValue = parameterValue;
+        value = parameterValue;
+    } else {
+        value = openRequest->second.previousValue;
+    }
+
+    if (openRequest->second.numRequests == 1) {
+        openModificationRequests.erase(parameterName);
+    } else {
+        openRequest->second.numRequests -= 1;
+    }
+
+    auto response = std::make_shared<ParameterModificationResponse>(parameterName, value,
+                                                                    success, reason);
 
     timeoutContainer->handled = true;
 
