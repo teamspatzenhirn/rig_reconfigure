@@ -155,10 +155,13 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
 
         ImGui::SameLine();
         ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
+        static ImGuiTableFlags flags = ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_NoHostExtendX;
 
+        ImVec2 outer_size = ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 3 + 3.0f);
+        
         if (std::holds_alternative<double>(value)) {
             ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
-                              nullptr, "%.6g");
+                              nullptr, "%.10g");
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
@@ -199,7 +202,150 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
-        }
+        } else if (std::holds_alternative<BoolArrayParam>(value)) {
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<BoolArrayParam>(value)).arrayValue.size(), flags, outer_size))
+            {
+                for (int cell = 0; cell < (std::get<BoolArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(cell);
+                    ImGui::SetNextItemWidth(FLT_MIN);
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 0.5*(ImGui::GetColumnWidth()) - ImGui::GetStyle().ItemSpacing.x);
+                    bool temp = (std::get<BoolArrayParam>(value).arrayValue.at(cell)); //&vector<bool> is the c++ bug
+                    if (ImGui::Checkbox(identifier.c_str(), &temp)) {
+                        std::get<BoolArrayParam>(value).arrayValue.at(cell) = temp;
+                        serviceWrapper.pushRequest(
+                                std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::TableNextRow();
+                for (int cell = 0; cell < (std::get<BoolArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();                    
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 2.3f + 0.5*(ImGui::GetColumnWidth() - ImGui::CalcTextSize(std::to_string(cell + 1).c_str()).x));
+                    ImGui::Text("%s",std::to_string(cell + 1).c_str());
+                };
+                ImGui::EndTable();
+            }            
+        } else if (std::holds_alternative<IntArrayParam>(value)) {
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<IntArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
+            {
+                for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize(std::to_string((std::get<IntArrayParam>(value)).arrayValue.at(cell)).c_str()).x + ImGui::CalcTextSize("00").x);
+                }
+                for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
+                {                    
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(cell);
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::DragScalar(identifier.c_str(), ImGuiDataType_S64, &((std::get<IntArrayParam>(value)).arrayValue.at(cell)), -1);
+                    ImGui::PopID();
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        (std::get<IntArrayParam>(value)).isChanged = true;
+                    }
+                    if (ImGui::IsItemDeactivated()) {
+                        (std::get<IntArrayParam>(value)).isChanging = false;
+                    }
+                    if (ImGui::IsItemActivated()){
+                        (std::get<IntArrayParam>(value)).isChanging = true;
+                    }
+                }
+                if ((std::get<IntArrayParam>(value)).isChanged && !(std::get<IntArrayParam>(value)).isChanging) {
+                    serviceWrapper.pushRequest(
+                            std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                    (std::get<IntArrayParam>(value)).isChanged = false;
+                }
+                ImGui::TableNextRow();
+                for (int cell = 0; cell < (std::get<IntArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();                    
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 2.3f + 0.5*(ImGui::GetColumnWidth() - ImGui::CalcTextSize(std::to_string(cell + 1).c_str()).x));
+                    ImGui::Text("%s",std::to_string(cell + 1).c_str());
+                };
+                ImGui::EndTable();
+            }
+        } else if (std::holds_alternative<DoubleArrayParam>(value)) {
+            
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<DoubleArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
+            {
+                for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize(std::to_string((std::get<DoubleArrayParam>(value)).arrayValue.at(cell)).c_str()).x);
+                }
+                
+                for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(cell);
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &((std::get<DoubleArrayParam>(value)).arrayValue.at(cell)), 1.0F, nullptr,
+                              nullptr, "%.10g");
+                    ImGui::PopID();
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        (std::get<DoubleArrayParam>(value)).isChanged = true;
+                    }
+                    if (ImGui::IsItemDeactivated()) {
+                        (std::get<DoubleArrayParam>(value)).isChanging = false;
+                    }
+                    if (ImGui::IsItemActivated()){
+                        (std::get<DoubleArrayParam>(value)).isChanging = true;
+                    }
+                }
+                if ((std::get<DoubleArrayParam>(value)).isChanged && !(std::get<DoubleArrayParam>(value)).isChanging) {
+                    serviceWrapper.pushRequest(
+                            std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                    (std::get<DoubleArrayParam>(value)).isChanged = false;
+                }
+                ImGui::TableNextRow();
+                for (int cell = 0; cell < (std::get<DoubleArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();                    
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 2.3f + 0.5*(ImGui::GetColumnWidth() - ImGui::CalcTextSize(std::to_string(cell + 1).c_str()).x));
+                    ImGui::Text("%s",std::to_string(cell + 1).c_str());
+                };
+                ImGui::EndTable();
+            }
+        } else if (std::holds_alternative<StringArrayParam>(value)) {
+            if (ImGui::BeginTable(identifier.c_str(), (std::get<StringArrayParam>(value)).arrayValue.size(),flags | ImGuiTableFlags_NoPadInnerX, outer_size))
+            {
+                for (int cell = 0; cell < (std::get<StringArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize((std::get<StringArrayParam>(value)).arrayValue.at(cell).c_str()).x + + ImGui::CalcTextSize("AA").x);
+                }
+                for (int cell = 0; cell < (std::get<StringArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(cell);
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    ImGui::InputText(identifier.c_str(), &((std::get<StringArrayParam>(value)).arrayValue.at(cell)));
+                    ImGui::PopID();
+                    if (ImGui::IsItemDeactivatedAfterEdit()) {
+                        (std::get<StringArrayParam>(value)).isChanged = true;
+                    }
+                    if (ImGui::IsItemDeactivated()) {
+                        (std::get<StringArrayParam>(value)).isChanging = false;
+                    }
+                    if (ImGui::IsItemActivated()){
+                        (std::get<StringArrayParam>(value)).isChanging = true;
+                    }
+                }
+                if ((std::get<StringArrayParam>(value)).isChanged && !(std::get<StringArrayParam>(value)).isChanging) {
+                    serviceWrapper.pushRequest(
+                            std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
+                    (std::get<StringArrayParam>(value)).isChanged = false;
+                }
+                ImGui::TableNextRow();
+                for (int cell = 0; cell < (std::get<StringArrayParam>(value)).arrayValue.size(); cell++)
+                {
+                    ImGui::TableNextColumn();                    
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + 2.3f + 0.5*(ImGui::GetColumnWidth() - ImGui::CalcTextSize(std::to_string(cell + 1).c_str()).x));
+                    ImGui::Text("%s",std::to_string(cell + 1).c_str());
+                };
+                ImGui::EndTable();
+            }
+        } 
         ImGui::PopItemWidth();
     }
 
