@@ -28,7 +28,7 @@ constexpr auto TEXT_INPUT_EDITING_END_CHARACTERS = "\n";
 
 static std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                              const std::shared_ptr<ParameterGroup> &parameterNode,
-                                             std::size_t maxParamLength, std::size_t textfieldWidth,
+                                             std::size_t maxParamLength,
                                              const std::string &filterString, bool expandAll = false);
 
 void renderParameterWindow(const char *windowName, const std::string &curSelectedNode,
@@ -90,10 +90,8 @@ void renderParameterWindow(const char *windowName, const std::string &curSelecte
         ImGui::Dummy(ImVec2(0.0F, 10.0F));
 
         const auto maxParamLength = filteredParameterTree.getMaxParamNameLength();
-        const auto textfieldWidth = std::max(MIN_INPUT_TEXT_FIELD_WIDTH, curWindowWidth - static_cast<int>(maxParamLength) - TEXT_INPUT_FIELD_PADDING);
-
         const auto ids = visualizeParameters(serviceWrapper, filteredParameterTree.getRoot(),
-                                             maxParamLength, textfieldWidth, filteredParameterTree.getAppliedFilter(),
+                                             maxParamLength, filteredParameterTree.getAppliedFilter(),
                                              expandAllParameters);
         treeNodeIDs.insert(ids.begin(), ids.end());
 
@@ -111,7 +109,6 @@ void renderParameterWindow(const char *windowName, const std::string &curSelecte
 std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                       const std::shared_ptr<ParameterGroup> &parameterNode,
                                       const std::size_t maxParamLength,
-                                      const std::size_t textfieldWidth,
                                       const std::string &filterString,
                                       const bool expandAll) {
     // required to store which of the text input fields is 'dirty' (has changes which have not yet been propagated to
@@ -154,7 +151,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::Text("%s", padding.c_str());
 
         ImGui::SameLine();
-        ImGui::PushItemWidth(static_cast<float>(textfieldWidth));
+        ImGui::PushItemWidth(-FLT_MIN);
 
         if (std::holds_alternative<double>(value)) {
             ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
@@ -232,8 +229,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
             }
 
             if (open) {
-                const auto newWidth = textfieldWidth - TEXT_FIELD_WIDTH_REDUCTION_PER_LEVEL;
-                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength, newWidth,
+                auto subIDs = visualizeParameters(serviceWrapper, subgroup, maxParamLength,
                                                   filterString, expandAll);
                 nodeIDs.insert(subIDs.begin(), subIDs.end());
                 ImGui::TreePop();
