@@ -71,6 +71,10 @@ void ServiceWrapper::setNodeOfInterest(const std::string &name) {
         listParametersClient->prune_pending_requests();
     }
 
+    if (describeParametersClient) {
+        describeParametersClient->prune_pending_requests();
+    }
+
     if (getParametersClient) {
         getParametersClient->prune_pending_requests();
     }
@@ -82,6 +86,7 @@ void ServiceWrapper::setNodeOfInterest(const std::string &name) {
     nodeName = name;
 
     listParametersClient = node->create_client<rcl_interfaces::srv::ListParameters>(nodeName + "/list_parameters");
+    describeParametersClient = node->create_client<rcl_interfaces::srv::DescribeParameters>(nodeName + "/describe_parameters");
     getParametersClient = node->create_client<rcl_interfaces::srv::GetParameters>(nodeName + "/get_parameters");
     setParametersClient = node->create_client<rcl_interfaces::srv::SetParameters>(nodeName + "/set_parameters");
 }
@@ -165,6 +170,28 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
             break;
         }
 
+        case Request::Type::QUERY_PARAMETER_DESCRIPTIONS: {
+            auto descriptionRequest = std::dynamic_pointer_cast<ParameterDescriptionRequest>(request);
+            auto serviceRequest = std::make_shared<rcl_interfaces::srv::DescribeParameters::Request>();
+            serviceRequest->names = descriptionRequest->parameterNames;
+
+            const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
+
+            auto callbackLambda = [&, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::DescribeParameters>::SharedFuture future) {
+                std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
+                parameterDescriptionsReceived(std::forward<decltype(future)>(future), timeoutPtr);
+            };
+
+            describeParametersClient->async_send_request(serviceRequest, callbackLambda);
+
+            {
+                std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
+                unfinishedROSRequests.push_back(timeoutPtr);
+            }
+
+            break;
+        }
+
         case Request::Type::QUERY_PARAMETER_VALUES: {
             auto valueRequest = std::dynamic_pointer_cast<ParameterValueRequest>(request);
 
@@ -173,7 +200,7 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
 
             const auto timeoutPtr = std::make_shared<FutureTimeoutContainer>();
 
-            auto callbackLambda = [&, parameters=valueRequest->parameterNames, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
+            auto callbackLambda = [&, parameters=valueRequest->parameterDescriptors, timeoutPtr](rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture future) {
                 std::lock_guard unfinishedROSRequestsLock(unfinishedROSRequestsMutex);
                 parameterValuesReceived(std::forward<decltype(future)>(future), parameters, timeoutPtr);
             };
@@ -237,16 +264,32 @@ void ServiceWrapper::handleRequest(const RequestPtr &request) {
 
 void ServiceWrapper::nodeParametersReceived(const rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture &future,
                                             const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
-    auto valueRequest = std::make_shared<ParameterValueRequest>(future.get()->result.names);
+    auto describeRequest = std::make_shared<ParameterDescriptionRequest>(future.get()->result.names);
 
     if (ignoreDefaultParameters) {
         // Hide default parameters "use_sim_time", "qos_overrides./*", "start_type_description_service"
         static std::regex HIDDEN_PARAMETER_REGEX = std::regex(
                 "^use_sim_time$|^qos_overrides\\.\\/.*$|^start_type_description_service$");
-        std::erase_if(valueRequest->parameterNames, [](const std::string &s) {
+        std::erase_if(describeRequest->parameterNames, [](const std::string &s) {
             return std::regex_match(s, HIDDEN_PARAMETER_REGEX);
         });
     }
+
+    timeoutContainer->handled = true;
+
+    requestQueue.push(std::move(describeRequest));
+}
+
+void ServiceWrapper::parameterDescriptionsReceived(const rclcpp::Client<rcl_interfaces::srv::DescribeParameters>::SharedFuture &future,
+                                                   const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
+    const auto& descriptors = future.get()->descriptors;
+    std::vector<std::string> names;
+    names.reserve(descriptors.size());
+    for (const auto& descriptor: descriptors) {
+        names.push_back(descriptor.name);
+    }
+
+    auto valueRequest = std::make_shared<ParameterValueRequest>(names, descriptors);
 
     timeoutContainer->handled = true;
 
@@ -254,26 +297,26 @@ void ServiceWrapper::nodeParametersReceived(const rclcpp::Client<rcl_interfaces:
 }
 
 void ServiceWrapper::parameterValuesReceived(const rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture &future,
-                                             const std::vector<std::string> &parameterNames,
+                                             const std::vector<rcl_interfaces::msg::ParameterDescriptor> &parameterDescriptors,
                                              const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer) {
     auto response = std::make_shared<ParameterValueResponse>();
 
     auto values = future.get()->values;
     for (auto i = 0U; i < values.size(); i++) {
-        const auto &parameterName = parameterNames.at(i);
+        const auto &descriptor = parameterDescriptors.at(i);
         const auto &valueMsg = values.at(i);
         switch (valueMsg.type) {
             case rcl_interfaces::msg::ParameterType::PARAMETER_BOOL:
-                response->parameters.emplace_back(parameterName, valueMsg.bool_value);
+                response->parameters.emplace_back(descriptor, valueMsg.bool_value);
                 break;
             case rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER:
-                response->parameters.emplace_back(parameterName, static_cast<int>(valueMsg.integer_value));
+                response->parameters.emplace_back(descriptor, static_cast<int>(valueMsg.integer_value));
                 break;
             case rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE:
-                response->parameters.emplace_back(parameterName, valueMsg.double_value);
+                response->parameters.emplace_back(descriptor, valueMsg.double_value);
                 break;
             case rcl_interfaces::msg::ParameterType::PARAMETER_STRING:
-                response->parameters.emplace_back(parameterName, valueMsg.string_value);
+                response->parameters.emplace_back(descriptor, valueMsg.string_value);
                 break;
             default:
                 // arrays are currently not supported

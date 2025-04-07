@@ -106,6 +106,17 @@ void renderParameterWindow(const char *windowName, const std::string &curSelecte
     ImGui::End();
 }
 
+std::string getFormatStringFromStep(double step, int max_digits = 10) {
+    const double epsilon = 1e-12;  // tolerance for rounding error
+    int digits = 0;
+    double scaled = step;
+    while (digits < max_digits && std::abs(scaled - std::round(scaled)) > epsilon) {
+        scaled *= 10.0;
+        ++digits;
+    }
+    return "%." + std::to_string(digits) + "f";
+}
+
 std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                       const std::shared_ptr<ParameterGroup> &parameterNode,
                                       const std::size_t maxParamLength,
@@ -129,7 +140,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         return {};
     }
 
-    for (auto &[name, fullPath, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
+    for (auto &[name, descriptor, fullPath, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
         std::string identifier = "##" + name;
 
         // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired
@@ -153,9 +164,29 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::SameLine();
         ImGui::PushItemWidth(-FLT_MIN);
 
+        if (descriptor.read_only) {
+            ImGui::BeginDisabled();
+        }
+
         if (std::holds_alternative<double>(value)) {
-            ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
-                              nullptr, "%.6g");
+            if (!descriptor.floating_point_range.empty()) {
+                double* min = &descriptor.floating_point_range[0].from_value;
+                double* max = &descriptor.floating_point_range[0].to_value;
+                double step = std::fabs(descriptor.floating_point_range[0].step);
+                std::string format = "%.6g";
+                if (step != 0) {
+                    format = getFormatStringFromStep(step);
+                }
+                if(ImGui::SliderScalar(identifier.c_str(), ImGuiDataType_Double, 
+                                    &std::get<double>(value), min, max, format.c_str(), 
+                                    ImGuiSliderFlags_AlwaysClamp) && step != 0) {
+                    std::get<double>(value) = std::round((std::get<double>(value) - *min) / step) * step + *min;
+                }
+            }
+            else {
+                ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 
+                                  1.0, nullptr, nullptr, "%.6g");
+            }
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
@@ -166,7 +197,18 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
-            ImGui::DragInt(identifier.c_str(), &std::get<int>(value));
+            if (!descriptor.integer_range.empty()) {
+                int min = descriptor.integer_range[0].from_value;
+                int max = descriptor.integer_range[0].to_value;
+                int step = descriptor.integer_range[0].step;
+
+                if(ImGui::SliderInt(identifier.c_str(), &std::get<int>(value), min, max) && step != 0) {
+                    std::get<int>(value) = static_cast<int>(std::round((std::get<int>(value) - min) / step) * step + min);
+                }
+            }
+            else {
+                ImGui::DragInt(identifier.c_str(), &std::get<int>(value));
+            }
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
@@ -197,6 +239,11 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         }
+
+        if (descriptor.read_only) {
+            ImGui::EndDisabled();
+        }
+
         ImGui::PopItemWidth();
     }
 

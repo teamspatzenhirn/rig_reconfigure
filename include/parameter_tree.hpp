@@ -12,6 +12,9 @@
 #include <memory>
 #include <optional>
 #include <utility>
+
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
+
 #include "responses.hpp"
 
 /**
@@ -22,16 +25,19 @@ struct TreeElement {
     TreeElement(const ROSParameter &parameter_, std::string fullParameterPath_,
                 std::optional<std::size_t> patternStart_ = std::nullopt,
                 std::optional<std::size_t> patternEnd_ = std::nullopt) :
-        name(parameter_.name), fullPath(std::move(fullParameterPath_)), value(parameter_.value),
+        name(parameter_.name), description(parameter_.description), 
+        fullPath(std::move(fullParameterPath_)), value(parameter_.value),
         searchPatternStart(patternStart_), searchPatternEnd(patternEnd_) {};
 
-    TreeElement(std::string name_, std::string fullParameterPath_, ROSParameterVariant value_,
+    TreeElement(std::string name_, const rcl_interfaces::msg::ParameterDescriptor &description_, 
+                std::string fullParameterPath_, ROSParameterVariant value_,
                 std::optional<std::size_t> patternStart_ = std::nullopt,
                 std::optional<std::size_t> patternEnd_ = std::nullopt) :
-        name(std::move(name_)), fullPath(std::move(fullParameterPath_)), value(std::move(value_)),
-        searchPatternStart(patternStart_), searchPatternEnd(patternEnd_) {};
+        name(std::move(name_)), description(description_), fullPath(std::move(fullParameterPath_)),
+        value(std::move(value_)), searchPatternStart(patternStart_), searchPatternEnd(patternEnd_) {};
 
     std::string name; // parameter name without prefixes
+    rcl_interfaces::msg::ParameterDescriptor description;
 
     // in addition to the name we store the full path of the parameter in the leaf nodes of the tree in order to be
     // able to support the mixing of different separators
