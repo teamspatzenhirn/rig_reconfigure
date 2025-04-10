@@ -107,6 +107,9 @@ void renderParameterWindow(const char *windowName, const std::string &curSelecte
 }
 
 std::string getFormatStringFromStep(double step, int max_digits = 10) {
+    if (step == 0) {
+        return std::string("%.6g");
+    }
     const double epsilon = 1e-12;  // tolerance for rounding error
     int digits = 0;
     double scaled = step;
@@ -115,6 +118,96 @@ std::string getFormatStringFromStep(double step, int max_digits = 10) {
         ++digits;
     }
     return "%." + std::to_string(digits) + "f";
+}
+
+bool hasBoundedRange(const rcl_interfaces::msg::ParameterDescriptor& param) {
+    if (param.type == rcl_interfaces::msg::ParameterType::PARAMETER_DOUBLE) {
+        if (param.floating_point_range.empty()) {
+            return false;
+        }
+
+        if (!std::isfinite(param.floating_point_range[0].from_value) ||
+            !std::isfinite(param.floating_point_range[0].to_value)) {
+            return false;
+        }
+
+        if (param.floating_point_range[0].from_value <= -std::numeric_limits<float>::max() ||
+            param.floating_point_range[0].from_value >=  std::numeric_limits<float>::max()) {
+            return false;
+        }
+
+        if (param.floating_point_range[0].to_value <= -std::numeric_limits<float>::max() ||
+            param.floating_point_range[0].to_value >=  std::numeric_limits<float>::max()) {
+            return false;
+        }
+
+        return true;
+    }
+    else if (param.type == rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER) {
+        if (param.integer_range.empty()) {
+            return false;
+        }
+
+        return true;
+    }
+    return false;
+}
+
+bool areDoublesEqual(double x, double y, double ulp = 100.0) {
+  return std::abs(x - y) <= std::numeric_limits<double>::epsilon() * std::abs(x + y) * ulp;
+}
+
+double snapToDoubleRange(double value, double from_value, double to_value, double step) {
+    // this mostly matches the logic for checking if a double parameter value is 
+    // valid for a defined floating point range: rclcpp/node_interfaces/node_parameters.cpp
+
+    // clamp value within bounds
+    value = std::clamp(value, from_value, to_value);
+
+    // handle cases where the step is not defined or would be invalid
+    if (step == 0.0 || std::isnan(step) || from_value == std::numeric_limits<double>::lowest()) {
+        // continuous range
+        return value;
+    }
+
+    // return from_value if the value is within 100 ULPs
+    if (areDoublesEqual(value, from_value)) {
+        return from_value;
+    }
+
+    // return to_value if the value is within 100 ULPs
+    if (areDoublesEqual(value, to_value)) {
+        return to_value;
+    }
+
+    // snap to closest step
+    step = std::abs(step);
+    return from_value + std::round((value - from_value) / step) * step;
+}
+
+int64_t snapToIntegerRange(int64_t value, int64_t from_value, int64_t to_value, uint64_t step) {
+    // this mostly matches the logic for checking if a double parameter value is 
+    // valid for a defined integer range: rclcpp/node_interfaces/node_parameters.cpp
+
+    value = std::clamp(value, from_value, to_value);
+
+    if (step == 0 || step == 1) {
+        // all integers within range
+        return value;
+    }
+
+    // the start of the range is always valid
+    if (value == from_value) {
+        return value;
+    }
+
+    // the end of the range is always valid
+    if (value == to_value) {
+        return value;
+    }
+
+    // snap to closest step
+    return from_value + static_cast<int64_t>(std::round((value - from_value) / static_cast<double>(step))) * step;
 }
 
 std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
@@ -169,18 +262,29 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         }
 
         if (std::holds_alternative<double>(value)) {
-            if (!descriptor.floating_point_range.empty()) {
+            if (hasBoundedRange(descriptor)) {
                 double* min = &descriptor.floating_point_range[0].from_value;
                 double* max = &descriptor.floating_point_range[0].to_value;
                 double step = std::fabs(descriptor.floating_point_range[0].step);
-                std::string format = "%.6g";
-                if (step != 0) {
-                    format = getFormatStringFromStep(step);
-                }
+                std::string format = getFormatStringFromStep(step);
                 if(ImGui::SliderScalar(identifier.c_str(), ImGuiDataType_Double, 
                                     &std::get<double>(value), min, max, format.c_str(), 
-                                    ImGuiSliderFlags_AlwaysClamp) && step != 0) {
-                    std::get<double>(value) = std::round((std::get<double>(value) - *min) / step) * step + *min;
+                                    ImGuiSliderFlags_AlwaysClamp)) {
+                    std::get<double>(value) = snapToDoubleRange(std::get<double>(value), *min, *max, step);
+                }
+            }
+            else if (!descriptor.floating_point_range.empty()) {
+                double* min = &descriptor.floating_point_range[0].from_value;
+                double* max = &descriptor.floating_point_range[0].to_value;
+                double step = std::fabs(descriptor.floating_point_range[0].step);
+                std::string format = getFormatStringFromStep(step);
+                double speed = 1.0;
+                if (step != 0.0 && !std::isnan(step)) {
+                    speed = step;
+                }
+                if(ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 
+                                     speed, min, max, format.c_str())) {
+                    std::get<double>(value) = snapToDoubleRange(std::get<double>(value), *min, *max, step);
                 }
             }
             else {
@@ -197,13 +301,13 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
-            if (!descriptor.integer_range.empty()) {
+            if (hasBoundedRange(descriptor)) {
                 int min = descriptor.integer_range[0].from_value;
                 int max = descriptor.integer_range[0].to_value;
                 int step = descriptor.integer_range[0].step;
 
                 if(ImGui::SliderInt(identifier.c_str(), &std::get<int>(value), min, max) && step != 0) {
-                    std::get<int>(value) = static_cast<int>(std::round((std::get<int>(value) - min) / step) * step + min);
+                    std::get<int>(value) = snapToIntegerRange(std::get<int>(value), min, max, step);
                 }
             }
             else {
