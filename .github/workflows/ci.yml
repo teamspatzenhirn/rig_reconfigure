@@ -1,11 +1,11 @@
 name: Build
 
-on: push
+on: [push, pull_request]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
-    container: ros:iron
+    container: ros:jazzy
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
