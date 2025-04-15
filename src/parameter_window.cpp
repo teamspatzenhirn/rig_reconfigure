@@ -178,7 +178,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                     speed = step;
                 }
                 if(ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 
-                                     speed, min, max, format.c_str())) {
+                                     speed, min, max, format.c_str(), ImGuiSliderFlags_AlwaysClamp)) {
                     std::get<double>(value) = snapToDoubleRange(std::get<double>(value), *min, *max, step);
                 }
             }
@@ -201,7 +201,8 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                 int max = descriptor.integer_range[0].to_value;
                 int step = descriptor.integer_range[0].step;
 
-                if(ImGui::SliderInt(identifier.c_str(), &std::get<int>(value), min, max) && step != 0) {
+                if(ImGui::SliderInt(identifier.c_str(), &std::get<int>(value), min, max, "%d",
+                                    ImGuiSliderFlags_AlwaysClamp)) {
                     std::get<int>(value) = snapToIntegerRange(std::get<int>(value), min, max, step);
                 }
             }
