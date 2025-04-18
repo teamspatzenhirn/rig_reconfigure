@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
     serviceWrapper.setIgnoreDefaultParameters(ignoreDefaultParameters);
 
     // Main loop
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window) && rclcpp::ok()) {
         // these variables are only relevant for a single iteration
         const auto frame_start = std::chrono::high_resolution_clock::now();
 
