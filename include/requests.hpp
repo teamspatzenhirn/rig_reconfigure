@@ -12,11 +12,15 @@
 #include <utility>
 #include <vector>
 #include <string>
+
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
+
 #include "ros_parameter.hpp"
 
 struct Request {
     enum class Type {
-        TERMINATE, QUERY_NODE_NAMES, QUERY_NODE_PARAMETERS, QUERY_PARAMETER_VALUES, MODIFY_PARAMETER_VALUE
+        TERMINATE, QUERY_NODE_NAMES, QUERY_NODE_PARAMETERS, QUERY_PARAMETER_DESCRIPTIONS, 
+        QUERY_PARAMETER_VALUES, MODIFY_PARAMETER_VALUE
     };
 
     explicit Request(Type type_) : type(type_) {};
@@ -28,7 +32,18 @@ struct Request {
 using RequestPtr = std::shared_ptr<Request>;
 
 struct ParameterValueRequest : Request {
-    explicit ParameterValueRequest(const std::vector<std::string> &parameterNames_) : Request(Type::QUERY_PARAMETER_VALUES), parameterNames(parameterNames_) {};
+    explicit ParameterValueRequest(
+        const std::vector<std::string> &parameterNames_, 
+        const std::vector<rcl_interfaces::msg::ParameterDescriptor> &parameterDescriptors_) 
+            : Request(Type::QUERY_PARAMETER_VALUES), parameterNames(parameterNames_),
+              parameterDescriptors(parameterDescriptors_) {};
+
+    std::vector<std::string> parameterNames;
+    std::vector<rcl_interfaces::msg::ParameterDescriptor> parameterDescriptors;
+};
+
+struct ParameterDescriptionRequest : Request {
+    explicit ParameterDescriptionRequest(const std::vector<std::string> &parameterNames_) : Request(Type::QUERY_PARAMETER_DESCRIPTIONS), parameterNames(parameterNames_) {};
 
     std::vector<std::string> parameterNames;
 };
