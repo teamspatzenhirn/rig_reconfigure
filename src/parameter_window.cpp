@@ -49,8 +49,6 @@ void renderParameterWindow(const char *windowName, const std::string &curSelecte
 
     bool expandAllParameters = false;
 
-    const auto curWindowWidth = static_cast<int>(ImGui::GetWindowSize().x);
-
     if (!curSelectedNode.empty()) {
         ImGui::Text("Parameters of '%s'", curSelectedNode.c_str());
         ImGui::Dummy(ImVec2(0.0F, 5.0F));
@@ -106,6 +104,7 @@ void renderParameterWindow(const char *windowName, const std::string &curSelecte
     ImGui::End();
 }
 
+
 std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                                       const std::shared_ptr<ParameterGroup> &parameterNode,
                                       const std::size_t maxParamLength,
@@ -129,7 +128,7 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         return {};
     }
 
-    for (auto &[name, fullPath, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
+    for (auto &[name, descriptor, fullPath, value, highlightingStart, highlightingEnd] : parameterNode->parameters) {
         std::string identifier = "##" + name;
 
         // simple 'space' padding to avoid the need for a more complex layout with columns (the latter is still desired
@@ -153,9 +152,40 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
         ImGui::SameLine();
         ImGui::PushItemWidth(-FLT_MIN);
 
+        if (descriptor.read_only) {
+            ImGui::BeginDisabled();
+        }
+
         if (std::holds_alternative<double>(value)) {
-            ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 1.0F, nullptr,
-                              nullptr, "%.6g");
+            if (hasBoundedRange(descriptor)) {
+                double* min = &descriptor.floating_point_range[0].from_value;
+                double* max = &descriptor.floating_point_range[0].to_value;
+                double step = std::fabs(descriptor.floating_point_range[0].step);
+                std::string format = getFormatStringFromStep(step);
+                if(ImGui::SliderScalar(identifier.c_str(), ImGuiDataType_Double, 
+                                    &std::get<double>(value), min, max, format.c_str(), 
+                                    ImGuiSliderFlags_AlwaysClamp)) {
+                    std::get<double>(value) = snapToDoubleRange(std::get<double>(value), *min, *max, step);
+                }
+            }
+            else if (!descriptor.floating_point_range.empty()) {
+                double* min = &descriptor.floating_point_range[0].from_value;
+                double* max = &descriptor.floating_point_range[0].to_value;
+                double step = std::fabs(descriptor.floating_point_range[0].step);
+                std::string format = getFormatStringFromStep(step);
+                double speed = 1.0;
+                if (step != 0.0 && !std::isnan(step)) {
+                    speed = step;
+                }
+                if(ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 
+                                     speed, min, max, format.c_str(), ImGuiSliderFlags_AlwaysClamp)) {
+                    std::get<double>(value) = snapToDoubleRange(std::get<double>(value), *min, *max, step);
+                }
+            }
+            else {
+                ImGui::DragScalar(identifier.c_str(), ImGuiDataType_Double, &std::get<double>(value), 
+                                  1.0, nullptr, nullptr, "%.6g");
+            }
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
@@ -166,7 +196,19 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         } else if (std::holds_alternative<int>(value)) {
-            ImGui::DragInt(identifier.c_str(), &std::get<int>(value));
+            if (hasBoundedRange(descriptor)) {
+                int min = descriptor.integer_range[0].from_value;
+                int max = descriptor.integer_range[0].to_value;
+                int step = descriptor.integer_range[0].step;
+
+                if(ImGui::SliderInt(identifier.c_str(), &std::get<int>(value), min, max, "%d",
+                                    ImGuiSliderFlags_AlwaysClamp)) {
+                    std::get<int>(value) = snapToIntegerRange(std::get<int>(value), min, max, step);
+                }
+            }
+            else {
+                ImGui::DragInt(identifier.c_str(), &std::get<int>(value));
+            }
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 serviceWrapper.pushRequest(
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
@@ -197,6 +239,11 @@ std::set<ImGuiID> visualizeParameters(ServiceWrapper &serviceWrapper,
                         std::make_shared<ParameterModificationRequest>(ROSParameter(fullPath, value)));
             }
         }
+
+        if (descriptor.read_only) {
+            ImGui::EndDisabled();
+        }
+
         ImGui::PopItemWidth();
     }
 
