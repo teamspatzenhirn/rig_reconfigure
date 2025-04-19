@@ -25,8 +25,9 @@ ServiceWrapper::ServiceWrapper(bool ignoreDefaultParameters_) : ignoreDefaultPar
 
     thread = std::thread(&ServiceWrapper::threadFunc, this);
     rosThread = std::thread([&]() {
+        auto future = terminationHelper.get_future();
         while (!terminateThread) {
-            executor.spin_until_future_complete(terminationHelper.get_future());
+            executor.spin_until_future_complete(future);
         }
     });
 }
