@@ -10,6 +10,7 @@
 
 #include <ament_index_cpp/get_package_prefix.hpp>
 #include <ament_index_cpp/get_package_share_directory.hpp>
+#include <cstdint>
 #include <rcl_interfaces/msg/parameter_type.hpp>
 #include <cmath>
 #include <iostream>
@@ -104,6 +105,12 @@ bool hasBoundedRange(const rcl_interfaces::msg::ParameterDescriptor& param) {
     }
     else if (param.type == rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER) {
         if (param.integer_range.empty()) {
+            return false;
+        }
+
+        // This is how generate_parameter_library encodes open integer ranges
+        if (param.integer_range.at(0).to_value == std::numeric_limits<int64_t>::max() ||
+            param.integer_range.at(0).from_value == std::numeric_limits<int64_t>::lowest()) {
             return false;
         }
 

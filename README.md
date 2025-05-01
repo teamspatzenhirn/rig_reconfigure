@@ -30,7 +30,7 @@ The following features are not implemented yet, but would be nice to have. PRs a
 - feedback about the success of modifying parameters 
   (intended: directly behind the parameters, e.g. using spinners / checkmarks)
 - support for array parameters
-- consideration of limits specified in the [parameter description](https://docs.ros2.org/galactic/api/rcl_interfaces/msg/ParameterDescriptor.html)
+- support for one-sided value bounds specified in the [parameter description](https://docs.ros2.org/galactic/api/rcl_interfaces/msg/ParameterDescriptor.html)
 
 ## Known Issues
 
