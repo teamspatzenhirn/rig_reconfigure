@@ -2,8 +2,8 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.6.0 (2025-05-03)
+------------------
 * fix wrong bounds on one-sided numeric parameter bounds (`#46 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/46>`_)
 * fix errors when exiting rig via sigint (`#45 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/45>`_)
 * Add support for parameter ranges and disabling readonly parameters. (`#42 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/42>`)
