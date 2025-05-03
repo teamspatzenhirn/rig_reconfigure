@@ -2,6 +2,14 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fix wrong bounds on one-sided numeric parameter bounds (`#46 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/46>`_)
+* fix errors when exiting rig via sigint (`#45 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/45>`_)
+* Add support for parameter ranges and disabling readonly parameters. (`#42 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/42>`)
+* Fix parameter input widget widths (`#41 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/41>`_)
+* Contributors: Dominik, Jonas Otto, Marc Alban
+
 1.5.0 (2024-07-20)
 ------------------
 * create config directory if it doesnt exist (`#40 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/40>`_)
