@@ -78,14 +78,17 @@ class ServiceWrapper {
 
     // clients for calling the different services
     rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedPtr listParametersClient;
+    rclcpp::Client<rcl_interfaces::srv::DescribeParameters>::SharedPtr describeParametersClient;
     rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedPtr getParametersClient;
     rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedPtr setParametersClient;
 
     // callbacks for the results of the futures
     void nodeParametersReceived(const rclcpp::Client<rcl_interfaces::srv::ListParameters>::SharedFuture &future,
                                 const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
+    void parameterDescriptionsReceived(const rclcpp::Client<rcl_interfaces::srv::DescribeParameters>::SharedFuture &future,
+                                       const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
     void parameterValuesReceived(const rclcpp::Client<rcl_interfaces::srv::GetParameters>::SharedFuture &future,
-                                 const std::vector<std::string> &parameterNames,
+                                 const std::vector<rcl_interfaces::msg::ParameterDescriptor> &parameterDescriptors,
                                  const std::shared_ptr<FutureTimeoutContainer> &timeoutContainer);
     void parameterModificationResponseReceived(const rclcpp::Client<rcl_interfaces::srv::SetParameters>::SharedFuture &future,
                                                const std::string &parameterName,

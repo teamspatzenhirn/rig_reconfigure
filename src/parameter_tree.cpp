@@ -53,7 +53,8 @@ void ParameterTree::add(const std::shared_ptr<ParameterGroup> &curNode, const Tr
         curNode->subgroups.emplace_back(nextNode);
     }
 
-    add(nextNode, TreeElement(remainingName, parameter.fullPath, parameter.value));
+    add(nextNode, TreeElement(remainingName, parameter.description, parameter.fullPath, 
+                              parameter.value));
 }
 
 std::shared_ptr<ParameterGroup> ParameterTree::getRoot() {

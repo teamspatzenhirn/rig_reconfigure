@@ -14,6 +14,7 @@
 #include <filesystem>
 
 #include <GLFW/glfw3.h> // will drag system OpenGL headers
+#include <rcl_interfaces/msg/parameter_descriptor.hpp>
 
 struct Status {
     enum class Type { NONE, NO_NODES_AVAILABLE, PARAMETER_CHANGED, SERVICE_TIMEOUT };
@@ -43,6 +44,59 @@ void highlightedText(const std::string &text, std::size_t start, std::size_t end
  */
 bool highlightedSelectableText(const std::string &text, std::size_t start, std::size_t end,
                                const ImVec4 &highlightColor);
+
+std::string getFormatStringFromStep(double step, int max_digits = 10);
+
+/**
+ * Checks if a given parameter has a range that is effectively bounded on both sides.
+ *
+ * @param param Parameter description.
+ */
+bool hasBoundedRange(const rcl_interfaces::msg::ParameterDescriptor& param);
+
+/**
+ * Checks if two double values are equal to within a specified tolerance.
+ *
+ * @param x   First value.
+ * @param y   Second value.
+ * @param ulp Maximum number of representable numbers between x and y.
+ */
+bool areDoublesEqual(double x, double y, double ulp = 100.0);
+
+/**
+ * Snaps and clamps a double value to a given range and step.
+ *
+ * Note: The value is snapped to the nearest integer number of steps from the 'from_value'
+ *       or clamped to the 'to_value'.
+ *
+ *       The magnitude of the 'step' is used and the sign is ignored.
+ *
+ *       If 'step' == 0 or if 'from_value' is == double::lowest(), the range is considered
+ *       continuous.
+ *
+ * @param value      Input value.
+ * @param from_value Range minimum.
+ * @param to_value   Range maximum.
+ * @param step       Step size.
+ */
+double snapToDoubleRange(double value, double from_value, double to_value, double step);
+
+/**
+ * Snaps and clamps an integer value to a given range and step.
+ *
+ * Note: The value is snapped to the nearest integer number of steps from the 'from_value'
+ *       or clamped to the 'to_value'.
+ *
+ *       The magnitude of 'step' is used and the sign is ignored.
+ *
+ *       If 'step' == 0, the step size is considered 1.
+ *
+ * @param value      Input value.
+ * @param from_value Range minimum.
+ * @param to_value   Range maximum.
+ * @param step       Step size.
+ */
+int64_t snapToIntegerRange(int64_t value, int64_t from_value, int64_t to_value, uint64_t step);
 
 /**
  * Searches for the resource directory.

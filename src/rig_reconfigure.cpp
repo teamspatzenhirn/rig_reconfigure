@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
     const std::string config_file_path = config_file_dir.string() + "/imgui.ini";
 
     if (!std::filesystem::exists(config_file_dir)) {
-        std::filesystem::create_directory(config_file_dir);
+        std::filesystem::create_directories(config_file_dir);
     }
 
     ImGui::GetIO().IniFilename = config_file_path.c_str(); // important for automatic saving of .ini file
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
     serviceWrapper.setIgnoreDefaultParameters(ignoreDefaultParameters);
 
     // Main loop
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window) && rclcpp::ok()) {
         // these variables are only relevant for a single iteration
         const auto frame_start = std::chrono::high_resolution_clock::now();
 

@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
     <name>rig_reconfigure</name>
-    <version>1.4.0</version>
+    <version>1.6.0</version>
     <description>Standalone GUI tool for editing node parameters at runtime.</description>
     <maintainer email="team-spatzenhirn@uni-ulm.de">Team Spatzenhirn</maintainer>
     <maintainer email="jonas@jonasotto.com">Jonas Otto</maintainer>
@@ -14,6 +14,7 @@
     <depend>libglfw3-dev</depend>
     <depend>rclcpp</depend>
     <depend>ament_index_cpp</depend>
+    <depend>backward_ros</depend>
 
     <export>
         <build_type>ament_cmake</build_type>

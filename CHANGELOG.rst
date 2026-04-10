@@ -2,6 +2,22 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.6.0 (2025-05-03)
+------------------
+* fix wrong bounds on one-sided numeric parameter bounds (`#46 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/46>`_)
+* fix errors when exiting rig via sigint (`#45 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/45>`_)
+* Add support for parameter ranges and disabling readonly parameters. (`#42 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/42>`)
+* Fix parameter input widget widths (`#41 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/41>`_)
+* Contributors: Dominik, Jonas Otto, Marc Alban
+
+1.5.0 (2024-07-20)
+------------------
+* create config directory if it doesnt exist (`#40 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/40>`_)
+* Persist window size via .ini file (`#36 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/36>`_)
+* Replace linear node list with tree representation (`#34 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/34>`_)
+* Fixes for default parameters (`#33 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/33>`_)
+* Contributors: Dominik, Jonas Otto
+
 1.4.0 (2023-12-27)
 ------------------
 * Add dependency on ament_index_cpp to fix build on rolling (`#29 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/29>`_)

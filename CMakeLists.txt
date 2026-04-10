@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(backward_ros QUIET)
 
 # Download imgui
 include(FetchContent)
