@@ -9,7 +9,7 @@
 #include "utils.hpp"
 
 #include <ament_index_cpp/get_package_prefix.hpp>
-#include <ament_index_cpp/get_package_share_directory.hpp>
+#include <ament_index_cpp/get_package_share_path.hpp>
 #include <cstdint>
 #include <rcl_interfaces/msg/parameter_type.hpp>
 #include <cmath>
@@ -181,8 +181,7 @@ std::filesystem::path findResourcePath(const std::string &execPath) {
 
     try {
         // Try getting package share dir via ament, and use that if it succeeds.
-        resourcePath = ament_index_cpp::get_package_share_directory("rig_reconfigure");
-        resourcePath.append("resource");
+        resourcePath = ament_index_cpp::get_package_share_path("rig_reconfigure") / "resource";
     } catch (ament_index_cpp::PackageNotFoundError &e) {
         std::cerr << "Warning: Error while looking for package share directory: " << e.what()
                   << "\n";
