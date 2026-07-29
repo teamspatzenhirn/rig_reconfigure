@@ -3,78 +3,28 @@ name: Build
 on: [push, pull_request]
 
 jobs:
-  build-jazzy:
-    runs-on: ubuntu-24.04
-    container: ros:jazzy
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-      - name: Configure git checkout as safe directory to allow dubious permission-setup
-        run: git config --system --add safe.directory $GITHUB_WORKSPACE
-      - name: Install depdendencies
-        run: |
-          . /opt/ros/$ROS_DISTRO/setup.sh
-          cd $GITHUB_WORKSPACE/..
-          apt update
-          rosdep update
-          rosdep install -y --from-paths rig_reconfigure
-      - name: Build
-        run: |
-          . /opt/ros/$ROS_DISTRO/setup.sh
-          cd $GITHUB_WORKSPACE/..
-          colcon build --packages-select rig_reconfigure
+  build:
+    runs-on: ubuntu-22.04
 
-  build-kilted:
-    runs-on: ubuntu-24.04
-    container: ros:kilted
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-      - name: Configure git checkout as safe directory to allow dubious permission-setup
-        run: git config --system --add safe.directory $GITHUB_WORKSPACE
-      - name: Install depdendencies
-        run: |
-          . /opt/ros/$ROS_DISTRO/setup.sh
-          cd $GITHUB_WORKSPACE/..
-          apt update
-          rosdep update
-          rosdep install -y --from-paths rig_reconfigure
-      - name: Build
-        run: |
-          . /opt/ros/$ROS_DISTRO/setup.sh
-          cd $GITHUB_WORKSPACE/..
-          colcon build --packages-select rig_reconfigure
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distro: humble
+            allow_failure: false
+          - ros_distro: jazzy
+            allow_failure: false
+          - ros_distro: kilted
+            allow_failure: false
+          - ros_distro: lyrical 
+            allow_failure: false
+          - ros_distro: rolling
+            allow_failure: true
 
-  build-lyrical:
-    runs-on: ubuntu-26.04
-    container: ros:lyrical
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-      - name: Configure git checkout as safe directory to allow dubious permission-setup
-        run: git config --system --add safe.directory $GITHUB_WORKSPACE
-      - name: Install depdendencies
-        run: |
-          . /opt/ros/$ROS_DISTRO/setup.sh
-          cd $GITHUB_WORKSPACE/..
-          apt update
-          rosdep update
-          rosdep install -y --from-paths rig_reconfigure
-      - name: Build
-        run: |
-          . /opt/ros/$ROS_DISTRO/setup.sh
-          cd $GITHUB_WORKSPACE/..
-          colcon build --packages-select rig_reconfigure
+    continue-on-error: ${{ matrix.allow_failure }}
 
-  build-rolling:
-    runs-on: ubuntu-26.04
-    container: ros:rolling
+    container: ros:${{ matrix.ros_distro }}
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
