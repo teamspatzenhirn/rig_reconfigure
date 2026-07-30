@@ -8,8 +8,8 @@
 
 #include "utils.hpp"
 
+#include <rclcpp/version.h>
 #include <ament_index_cpp/get_package_prefix.hpp>
-#include <ament_index_cpp/get_package_share_directory.hpp>
 #include <cstdint>
 #include <rcl_interfaces/msg/parameter_type.hpp>
 #include <cmath>
@@ -18,6 +18,12 @@
 #include <vector>
 
 #include "lodepng.h"
+
+#if RCLCPP_VERSION_GTE(21, 0, 0) // iron and never
+#include <ament_index_cpp/get_package_share_path.hpp>
+#else
+#include <ament_index_cpp/get_package_share_directory.hpp>
+#endif
 
 void highlightedText(const std::string &text, std::size_t start, std::size_t end, const ImVec4 &highlightColor) {
     if (start == std::string::npos) {
@@ -181,8 +187,12 @@ std::filesystem::path findResourcePath(const std::string &execPath) {
 
     try {
         // Try getting package share dir via ament, and use that if it succeeds.
+#if RCLCPP_VERSION_GTE(21, 0, 0) // iron and never
+        resourcePath = ament_index_cpp::get_package_share_path("rig_reconfigure") / "resource";
+#else
         resourcePath = ament_index_cpp::get_package_share_directory("rig_reconfigure");
-        resourcePath.append("resource");
+	resourcePath.append("resource");
+#endif
     } catch (ament_index_cpp::PackageNotFoundError &e) {
         std::cerr << "Warning: Error while looking for package share directory: " << e.what()
                   << "\n";

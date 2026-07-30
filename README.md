@@ -37,6 +37,10 @@ The following features are not implemented yet, but would be nice to have. PRs a
 - CPU usage is high when using non-hardware-accelerated OpenGL implementation, which is usually the case in VNC connections
 - vsync via glfw doesn't work in VNC sessions (leading to even higher CPU usage), enable the manual frame rate limiting to reduce it
 
+## Notes for Building From Source
+
+- the CMakeLists.txt is prepared to use [backward-ros](https://github.com/pal-robotics/backward_ros), but it is more handled like an optional dependency and thus not part of the package.xml
+
 ## Usage example
 
 ![Usage example](doc/demo.gif)

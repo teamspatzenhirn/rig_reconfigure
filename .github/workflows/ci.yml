@@ -5,10 +5,29 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-22.04
-    container: ros:jazzy
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ros_distro: humble
+            allow_failure: false
+          - ros_distro: jazzy
+            allow_failure: false
+          - ros_distro: kilted
+            allow_failure: false
+          - ros_distro: lyrical 
+            allow_failure: false
+          - ros_distro: rolling
+            allow_failure: true
+
+    continue-on-error: ${{ matrix.allow_failure }}
+
+    container: ros:${{ matrix.ros_distro }}
+
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Configure git checkout as safe directory to allow dubious permission-setup
