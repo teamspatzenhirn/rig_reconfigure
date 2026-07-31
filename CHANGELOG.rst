@@ -2,6 +2,14 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* Fixed distro compatibility from humble to rolling (`#47 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/47>`_)
+  * removed backward-ros from package.xml (still kept as optional build dependency)
+  * extended CI to check multiple ROS distros
+  * switch between get_package_share_path and get_package_share_directory depending on ROS distro
+* Contributors: Dominik
+
 1.6.0 (2025-05-03)
 ------------------
 * fix wrong bounds on one-sided numeric parameter bounds (`#46 <https://github.com/teamspatzenhirn/rig_reconfigure/pull/46>`_)
