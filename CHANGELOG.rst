@@ -2,8 +2,8 @@
 Changelog for package rig_reconfigure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+1.6.1 (2026-07-31)
+------------------
 * Fixed distro compatibility from humble to rolling (`#47 <https://github.com/teamspatzenhirn/rig_reconfigure/issues/47>`_)
   * removed backward-ros from package.xml (still kept as optional build dependency)
   * extended CI to check multiple ROS distros
